@@ -1,3 +1,9 @@
+# Maven build output
+target/
+
+# Generated schedules
+*-output.dot
+
 # Compiled class file
 *.class
 
