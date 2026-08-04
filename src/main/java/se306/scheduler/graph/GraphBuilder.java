@@ -1,6 +1,7 @@
 package se306.scheduler.graph;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,7 @@ import java.util.StringJoiner;
 public final class GraphBuilder {
 
     /** A dependency as it was written in the input, before names are resolved to indices. */
-    public record Edge(String from, String to, int weight) { }
+    private record Edge(String from, String to, int weight) { }
 
     private final Map<String, Integer> nodeWeights = new LinkedHashMap<>();
     private final List<Edge> edges = new ArrayList<>();
@@ -54,16 +55,6 @@ public final class GraphBuilder {
                     "edge '" + from + " -> " + to + "' has negative weight " + weight + ".");
         }
         edges.add(new Edge(from, to, weight));
-    }
-
-    /** Number of tasks declared so far. */
-    public int nodeCount() {
-        return nodeWeights.size();
-    }
-
-    /** Number of edges declared so far, before duplicates are collapsed. */
-    public int edgeCount() {
-        return edges.size();
     }
 
     /**
@@ -142,7 +133,7 @@ public final class GraphBuilder {
                 }
             }
         }
-        java.util.Arrays.fill(fill, 0);
+        Arrays.fill(fill, 0);
         // Column-major, so each task's predecessors come out ascending.
         for (int to = 0; to < n; to++) {
             for (int from = 0; from < n; from++) {

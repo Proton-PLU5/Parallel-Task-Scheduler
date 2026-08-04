@@ -1,6 +1,5 @@
 package se306.scheduler.graph;
 
-import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -125,18 +124,6 @@ public final class TaskGraph {
         return parentOffset[i + 1] - parentOffset[i];
     }
 
-    // --- convenience (allocating; for tests and output, not the search hot loop) ---------------
-
-    /** Copy of task {@code i}'s successors. Allocates — do not call from the search loop. */
-    public int[] childrenOf(int i) {
-        return Arrays.copyOfRange(childTargets, childOffset[i], childOffset[i + 1]);
-    }
-
-    /** Copy of task {@code i}'s predecessors. Allocates — do not call from the search loop. */
-    public int[] parentsOf(int i) {
-        return Arrays.copyOfRange(parentTargets, parentOffset[i], parentOffset[i + 1]);
-    }
-
     // --- edges ------------------------------------------------------------------------------
 
     /**
@@ -188,33 +175,6 @@ public final class TaskGraph {
     /** Name of the digraph as it appeared in the input, with any surrounding quotes stripped. */
     public String graphName() {
         return graphName;
-    }
-
-    /** Structural equality: same graph name, tasks (name and weight, in order) and weighted edges. */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof TaskGraph other)) {
-            return false;
-        }
-        return graphName.equals(other.graphName)
-                && Arrays.equals(names, other.names)
-                && Arrays.equals(weights, other.weights)
-                && Arrays.equals(childTargets, other.childTargets)
-                && Arrays.equals(childOffset, other.childOffset)
-                && Arrays.deepEquals(commCost, other.commCost);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = graphName.hashCode();
-        result = 31 * result + Arrays.hashCode(names);
-        result = 31 * result + Arrays.hashCode(weights);
-        result = 31 * result + Arrays.hashCode(childTargets);
-        result = 31 * result + Arrays.hashCode(childOffset);
-        return result;
     }
 
     @Override
