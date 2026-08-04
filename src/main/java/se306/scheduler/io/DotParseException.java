@@ -1,12 +1,11 @@
 package se306.scheduler.io;
 
 /**
- * Thrown when a DOT statement that should describe a task or dependency cannot be understood — a
- * missing {@code Weight}, a non-integer weight, or an unparseable node name.
+ * Thrown when a line of a DOT file is not one the parser accepts — a task declaration, a dependency,
+ * the graph header or a closing brace.
  *
- * <p>Statements the parser does not recognise at all (graph attributes, comments, subgraph braces)
- * are skipped silently rather than reported here; the project requires other DOT syntax to be
- * ignored gracefully.
+ * <p>Every unrecognised line is reported, so a typo fails loudly instead of quietly producing a
+ * graph with tasks missing from it.
  */
 public class DotParseException extends RuntimeException {
 

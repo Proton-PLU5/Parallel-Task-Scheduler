@@ -1,10 +1,10 @@
 digraph "test2" {
     A [Weight=4];
     B [Weight=5];
-    C [Weight=5];
-    D [Weight=3];
     A -> B [Weight=1];
+    C [Weight=5];
     A -> C [Weight=1];
+    D [Weight=3];
     B -> D [Weight=1];
     C -> D [Weight=1];
 }
