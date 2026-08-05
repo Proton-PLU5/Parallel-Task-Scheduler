@@ -11,25 +11,15 @@ import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 
 /**
- * Unit tests for {@link ListScheduler} verifying correctness required by Milestone 1.
+ * Tests for {@link ListScheduler} (Milestone 1: a valid, not necessarily optimal, schedule).
  *
- * <p>Test types:
- * <ul>
- *   <li><b>Hand-traced tests</b> — Small, deterministic graphs where the expected start time
- *       and processor for each task were computed manually by following the scheduler's
- *       algorithm (topological order, then earliest-start-time wins; ties broken deterministically
- *       in favour of the lowest processor index and the task declaration order). These tests
- *       lock down the scheduler's precise behaviour so regressions to the heuristic are detected.
- *   <li><b>Invariant tests</b> — Larger or more complex graphs where exact greedy output is
- *       impractical to compute by hand. The helper {@link #assertScheduleRespectsConstraints}
- *       validates the two project constraints directly: (1) no overlapping tasks on a single
- *       processor, and (2) every edge's precedence + communication-cost requirement is met.
- *       These tests ensure the schedule is valid even when the heuristic is suboptimal.
- * </ul>
+ * <p>Small graphs get hand-traced tests with exact expected start times/processors. Larger
+ * graphs use {@link #assertScheduleRespectsConstraints}, which checks no overlap per processor
+ * and precedence + communication cost per edge, without needing exact values.
  *
- * <p>All graphs are constructed with {@link GraphBuilder} rather than parsed from DOT files, so
- * these tests focus on scheduling logic only and do not depend on I/O or the {@code DotParser}.
+ * <p>Graphs are built with {@link GraphBuilder}, not parsed from {@code .dot} files.
  */
+
 class ListSchedulerTest {
 
     // ---------------------------------------------------------------------------------------
@@ -300,6 +290,49 @@ class ListSchedulerTest {
         assertScheduleRespectsConstraints(g, s);
         // With only one real dependency, extra processors can't help this chain.
         assertEquals(7, s.makespan());
+    }
+
+    @Test
+    @DisplayName("an empty graph produces an empty schedule")
+    void emptyGraphProducesEmptySchedule() {
+        GraphBuilder gb = new GraphBuilder();
+        TaskGraph g = gb.build();
+
+        Schedule s = new ListScheduler(g, 1).solve();
+
+        assertEquals(0, s.taskCount());
+        assertEquals(0, s.makespan());
+    }
+
+    @Test
+    @DisplayName("three-or-more processor tie breaks to the lowest-index processor")
+    void threeOrMoreProcessorTieBreaksToLowestIndex() {
+        GraphBuilder gb = new GraphBuilder();
+        // Create three independent unit tasks so they occupy processors 0..2 at t=0
+        gb.addNode("A", 1);
+        gb.addNode("B", 1);
+        gb.addNode("C", 1);
+        // D depends on A, B, C with zero communication cost — all processors become
+        // ready for D at the same earliest time, forcing a multi-way tie.
+        gb.addNode("D", 2);
+        gb.addEdge("A", "D", 0);
+        gb.addEdge("B", "D", 0);
+        gb.addEdge("C", "D", 0);
+        TaskGraph g = gb.build();
+
+        Schedule s = new ListScheduler(g, 4).solve();
+
+        // A, B, C should be placed on processors 0,1,2 respectively (declaration order)
+        assertEquals(0, s.processor(g.indexOf("A")));
+        assertEquals(1, s.processor(g.indexOf("B")));
+        assertEquals(2, s.processor(g.indexOf("C")));
+
+        // D will see the same earliest start time on processors 0..3; tie-breaker
+        // picks the lowest index (0). D should start at t=1 and finish at t=3.
+        assertEquals(0, s.processor(g.indexOf("D")));
+        assertEquals(1, s.startTime(g.indexOf("D")));
+        assertEquals(3, s.makespan());
+        assertScheduleRespectsConstraints(g, s);
     }
 
     // ---------------------------------------------------------------------------------------
