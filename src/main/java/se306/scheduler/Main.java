@@ -22,16 +22,6 @@ import se306.scheduler.schedule.Schedule;
  * <p>Exit status: 0 on success, 1 on a bad input file, 2 on bad command-line arguments.
  */
 public final class Main {
-
-    private static final String USAGE = """
-            Usage: java -jar scheduler.jar INPUT.dot P [OPTION]
-              INPUT.dot  a task graph with integer weights in dot format
-              P          number of processors to schedule the INPUT graph on
-            Options:
-              -p N       use N cores for execution in parallel (default is sequential)
-              -v         visualise the search
-              -o OUTPUT  output file is named OUTPUT (default is INPUT-output.dot)""";
-
     private Main() {
     }
 
@@ -41,7 +31,6 @@ public final class Main {
             arguments = CliArguments.parse(args);
         } catch (CliArgumentException e) {
             System.err.println("Error: " + e.getMessage());
-            System.err.println(USAGE);
             System.exit(2);
             return;
         }
