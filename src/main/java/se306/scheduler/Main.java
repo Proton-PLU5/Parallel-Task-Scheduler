@@ -7,6 +7,8 @@ import se306.scheduler.graph.GraphValidationException;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
+import javafx.application.Application;
+import se306.scheduler.gui.MainWindow;
 
 /**
  * Entry point for the input-parsing slice of the project (WBS 2.2/2.3): reads a DOT file into a
@@ -26,8 +28,12 @@ public final class Main {
 
     public static void main(String[] args) {
         Path input = args.length > 0 ? Path.of(args[0]) : DEFAULT_INPUT;
+        boolean visualise = containsFlag(args, "-v");
         try {
             new DotParser().parse(input);
+            if (visualise) {
+                Application.launch(MainWindow.class, args);
+            }
         } catch (DotParseException | GraphValidationException e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);
@@ -35,5 +41,12 @@ public final class Main {
             System.err.println("Error: could not read '" + input + "': " + e.getMessage());
             System.exit(1);
         }
+    }
+
+    private static boolean containsFlag(String[] args, String flag) {
+        for (String arg : args) {
+            if (arg.equals(flag)) return true;
+        }
+        return false;
     }
 }
