@@ -45,8 +45,9 @@ public final class Main {
 
         try {
             TaskGraph graph = new DotParser().parse(input);
-
             if (visualise) {
+                Schedule schedule = new ListScheduler(graph, numProcessors).solve();
+                MainWindow.setSchedule(graph, schedule);
                 Application.launch(MainWindow.class, args);
             } else {
                 Schedule schedule = new ListScheduler(graph, numProcessors).solve();
