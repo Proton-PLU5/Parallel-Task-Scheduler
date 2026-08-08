@@ -9,32 +9,50 @@ import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
 import javafx.application.Application;
 import se306.scheduler.gui.MainWindow;
+import se306.scheduler.schedule.ListScheduler;
+import se306.scheduler.schedule.Schedule;
 
 /**
- * Entry point for the input-parsing slice of the project (WBS 2.2/2.3): reads a DOT file into a
- * {@link TaskGraph}.
+ * Entry point for the parsing + scheduling slice of the project (WBS 2.2/2.3, 3.x): reads a DOT
+ * file into a {@link TaskGraph} and runs the greedy {@link ListScheduler} over it.
  *
- * <p>Scheduling itself (WBS 3.x) and the DOT output writer (WBS 2.4) live on other branches, so
- * there is nothing to schedule or write here yet — this main exists to run the parser end to end by
- * hand. It is silent on success and reports parse failures on stderr with a non-zero exit status.
+ * <p>The DOT output writer (WBS 2.4) lives on another branch, so the resulting {@link Schedule} is
+ * only printed to stdout for now rather than written to a file.
  */
 public final class Main {
-
-    /** Used when no input file is given on the command line. */
-    private static final Path DEFAULT_INPUT = Path.of("example.dot");
 
     private Main() {
     }
 
     public static void main(String[] args) {
-        Path input = args.length > 0 ? Path.of(args[0]) : DEFAULT_INPUT;
+        if (args.length < 2) {
+            System.err.println("Usage: java -jar scheduler.jar INPUT.dot P [-v]");
+            System.exit(1);
+            return;
+        }
+
+        Path input = Path.of(args[0]);
         boolean visualise = containsFlag(args, "-v");
+
+        int numProcessors;
         try {
-            new DotParser().parse(input);
+            numProcessors = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.err.println("Error: P must be an integer number of processors, was '" + args[1] + "'.");
+            System.exit(1);
+            return;
+        }
+
+        try {
+            TaskGraph graph = new DotParser().parse(input);
+
             if (visualise) {
                 Application.launch(MainWindow.class, args);
+            } else {
+                Schedule schedule = new ListScheduler(graph, numProcessors).solve();
+                System.out.println(schedule);
             }
-        } catch (DotParseException | GraphValidationException e) {
+        } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);
         } catch (IOException e) {
