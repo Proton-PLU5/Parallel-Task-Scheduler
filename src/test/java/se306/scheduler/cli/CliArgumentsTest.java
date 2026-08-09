@@ -67,6 +67,33 @@ class CliArgumentsTest {
     }
 
     @Test
+    @DisplayName("-o OUTPUT without an extension gets .dot, since the output is always a DOT file")
+    void outputOptionGainsDotExtension() {
+        CliArguments arguments = CliArguments.parse(new String[] {"INPUT.dot", "4", "-o", "output"});
+
+        assertEquals(Path.of("output.dot"), arguments.outputFile());
+    }
+
+    @Test
+    @DisplayName("-o OUTPUT that already ends in .dot is left alone, whatever its case")
+    void outputOptionKeepsExistingDotExtension() {
+        assertEquals(Path.of("output.dot"),
+                CliArguments.parse(new String[] {"INPUT.dot", "4", "-o", "output.dot"})
+                        .outputFile());
+        assertEquals(Path.of("output.DOT"),
+                CliArguments.parse(new String[] {"INPUT.dot", "4", "-o", "output.DOT"})
+                        .outputFile());
+    }
+
+    @Test
+    @DisplayName("-o keeps the directory it was given, extension or not")
+    void outputOptionKeepsDirectory() {
+        assertEquals(Path.of("results", "schedule.dot"),
+                CliArguments.parse(new String[] {"INPUT.dot", "4", "-o", "results/schedule"})
+                        .outputFile());
+    }
+
+    @Test
     @DisplayName("all options together, in any order")
     void allOptions() {
         CliArguments arguments = CliArguments

@@ -39,7 +39,7 @@ java -jar target/scheduler.jar src/test/resources/example.dot 2
 | `se306.scheduler.io` | `DotParser` reads the input graph, `DotOutputWriter` writes the scheduled one | 2.2, 2.4 |
 | `se306.scheduler.graph` | `GraphBuilder` accumulates declarations, `TaskGraph` is the frozen search-time model | 2.3 |
 | `se306.scheduler.schedule` | `Schedule` — the engine's result and the writer's input | 3.x |
-| `se306.scheduler.cli` | `CommandLineArgs` | 2.1 |
+| `se306.scheduler.cli` | `CliArguments` parses the command line | 2.1 |
 
 ### The two graph representations
 
@@ -70,7 +70,13 @@ requires team agreement.**
 
 ## Status
 
-The parser, graph model, output writer and CLI are complete and tested. `Main.schedule` is still a
-placeholder that runs every task sequentially on one processor: a valid schedule, but not an optimal
-one, and it ignores `P`. Replacing it with the branch-and-bound search is WBS 3.x; the `Schedule` it
-returns is the interface.
+The parser, graph model, output writer and CLI are complete and tested, and `Main` runs the whole
+pipeline: read the input graph, schedule it, write the result to `-o OUTPUT` (or `INPUT-output.dot`).
+
+The scheduler itself is still `ListScheduler`, a greedy list scheduler that respects `P` and the
+communication costs but is not optimal. Replacing it with the branch-and-bound search is WBS 3.x; the
+`Schedule` it returns is the interface, and nothing downstream of it needs to change.
+
+Output tasks carry `Weight`, `Start` and `Processor`, with processors numbered `1..P` as in the
+project description — `Schedule` numbers them from 0 internally, and `DotOutputWriter` is the only
+place that conversion happens.
