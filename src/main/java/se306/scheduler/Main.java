@@ -1,54 +1,73 @@
 package se306.scheduler;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
+import se306.scheduler.cli.CliArgumentException;
+import se306.scheduler.cli.CliArguments;
 import se306.scheduler.graph.GraphValidationException;
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.io.DotOutputWriter;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
 import se306.scheduler.schedule.ListScheduler;
 import se306.scheduler.schedule.Schedule;
 
 /**
- * Entry point for the parsing + scheduling slice of the project (WBS 2.2/2.3, 3.x): reads a DOT
- * file into a {@link TaskGraph} and runs the greedy {@link ListScheduler} over it.
+ * Entry point: {@code java -jar scheduler.jar INPUT.dot P [-p N] [-v] [-o OUTPUT]}.
  *
- * <p>The DOT output writer (WBS 2.4) lives on another branch, so the resulting {@link Schedule} is
- * only printed to stdout for now rather than written to a file.
+ * <p>The whole pipeline runs here: {@link CliArguments} parses the command line, {@link DotParser}
+ * reads the graph (WBS 2.2/2.3), {@link ListScheduler} schedules it and {@link DotOutputWriter}
+ * writes the result (WBS 2.4). The stages still outstanding — the optimal search (WBS 3.x) and
+ * visualisation — are marked with TODOs below; everything they need is already in {@code arguments}.
+ *
+ * <p>The schedule is always written to a file: to {@code OUTPUT} when {@code -o OUTPUT} is given, and
+ * to {@code INPUT-output.dot} beside the input otherwise, as {@link CliArguments} decides.
+ *
+ * <p>Exit status: 0 on success, 1 on an unreadable input or unwritable output, 2 on bad
+ * command-line arguments.
  */
 public final class Main {
-
     private Main() {
     }
 
     public static void main(String[] args) {
-        if (args.length < 2) {
-            System.err.println("Usage: java -jar scheduler.jar INPUT.dot P");
-            System.exit(1);
+        CliArguments arguments;
+        try {
+            arguments = CliArguments.parse(args);
+        } catch (CliArgumentException e) {
+            System.err.println("Error: " + e.getMessage());
+            System.exit(2);
             return;
         }
 
-        Path input = Path.of(args[0]);
-        int numProcessors;
+        TaskGraph graph;
+        Schedule schedule;
         try {
-            numProcessors = Integer.parseInt(args[1]);
-        } catch (NumberFormatException e) {
-            System.err.println("Error: P must be an integer number of processors, was '" + args[1] + "'.");
-            System.exit(1);
-            return;
-        }
+            graph = new DotParser().parse(arguments.inputFile());
 
-        try {
-            TaskGraph graph = new DotParser().parse(input);
-            Schedule schedule = new ListScheduler(graph, numProcessors).solve();
-            System.out.println(schedule);
+            // TODO (WBS 3.x): replace the greedy scheduler with the branch-and-bound search, using
+            // arguments.coreCount() cores and visualising the search when arguments.visualise().
+            schedule = new ListScheduler(graph, arguments.processorCount()).solve();
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);
+            return;
         } catch (IOException e) {
-            System.err.println("Error: could not read '" + input + "': " + e.getMessage());
+            System.err.println(
+                    "Error: could not read '" + arguments.inputFile() + "': " + e.getMessage());
             System.exit(1);
+            return;
         }
+
+        try {
+            new DotOutputWriter().write(graph, schedule, arguments.outputFile());
+        } catch (IOException e) {
+            System.err.println(
+                    "Error: could not write '" + arguments.outputFile() + "': " + e.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        System.out.println(schedule + " written to " + arguments.outputFile());
     }
 }
