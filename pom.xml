@@ -15,9 +15,21 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.10.2</junit.version>
     <javafx.version>21.0.2</javafx.version>
+    <jgrapht.version>1.5.2</jgrapht.version>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-core</artifactId>
+      <version>${jgrapht.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-io</artifactId>
+      <version>${jgrapht.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -44,9 +56,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+        <configuration>
+          <includes>
+            <include>**/*Test*.java</include>
+          </includes>
+        </configuration>
       </plugin>
 
-      <!-- single runnable jar: java -jar target/scheduler.jar INPUT.dot P -->
+      <!-- single runnable jar with the dependencies inside it: java -jar scheduler.jar INPUT.dot P -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -75,6 +92,49 @@
               <mainClass>se306.scheduler.gui.Main</mainClass>
           </configuration>
       </plugin>  
+      <!--
+        The project description requires the jar to be invoked as `java -jar scheduler.jar INPUT.dot P`,
+        so package also drops a copy of the shaded jar at the project root. This runs after the shade
+        plugin above because plugins bound to the same phase execute in the order they are declared,
+        which means the copy is the fat jar, not the dependency-less one.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <id>copy-jar-to-project-root</id>
+            <phase>package</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <outputDirectory>${project.basedir}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}</directory>
+                  <includes><include>${project.build.finalName}.jar</include></includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- so `mvn clean` removes that copy as well as target/ -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.3.2</version>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}</directory>
+              <includes><include>${project.build.finalName}.jar</include></includes>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>
