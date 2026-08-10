@@ -9,6 +9,7 @@ import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.io.DotOutputWriter;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
+import se306.scheduler.schedule.DFSBranchAndBound;
 import se306.scheduler.schedule.ListScheduler;
 import se306.scheduler.schedule.Schedule;
 
