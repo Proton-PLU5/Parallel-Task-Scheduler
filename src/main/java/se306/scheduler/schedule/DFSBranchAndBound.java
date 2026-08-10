@@ -19,11 +19,12 @@ public class DFSBranchAndBound {
     private int scheduledCount;
     private int makespan;
 
-    private record LogEntry(int task, int processor, int previousFreeAt, int previousMakespan) {}
+    private record LogEntry(int task, int processor, int previousFreeAt, int previousMakespan, int previousBound) {}
     private Deque<LogEntry> log;
 
     private int best;
     private Schedule bestSchedule;
+    private int currentBound;
 
     public DFSBranchAndBound(TaskGraph graph, int numProcessors) {
         if (numProcessors < 1) {
@@ -67,19 +68,12 @@ public class DFSBranchAndBound {
     }
 
     /**
-     * Computes a lower bound on the makespan based on the current partial schedule.
+     * Returns the lower bound
      *
      * @return The lower bound
      */
     private int lowerBound() {
-        int bound = makespan;
-        for (int task = 0; task < graph.taskCount(); task++) {
-            if (processorOf[task] != -1) {
-                bound = Math.max(bound, startTime[task] + bottomLevel[task]);
-            }
-        }
-
-        return bound;
+        return Math.max(makespan, currentBound);
     }
 
     public Schedule solve() {
@@ -164,13 +158,17 @@ public class DFSBranchAndBound {
         }
 
         // Log the previous state for backtracking
-        log.push(new LogEntry(task, processor, processorFreeAt[processor], makespan));
+        log.push(new LogEntry(task, processor, processorFreeAt[processor], makespan, currentBound));
 
         // Update the state with this task scheduled
         processorOf[task] = processor;
         startTime[task] = ready;
         processorFreeAt[processor] = ready + graph.weight(task);
         makespan = Math.max(makespan, processorFreeAt[processor]);
+
+        // Update the current bound
+        currentBound = Math.max(currentBound, ready + bottomLevel[task]);
+
         scheduledCount++;
 
         // Decrease indegree of children
@@ -190,6 +188,10 @@ public class DFSBranchAndBound {
         processorOf[entry.task()] = -1;
         processorFreeAt[entry.processor()] = entry.previousFreeAt();
         makespan = entry.previousMakespan();
+
+        // Restore the previous current bound
+        currentBound = entry.previousBound();
+
         scheduledCount--;
 
         for (int k = graph.childStart(entry.task()); k < graph.childEnd(entry.task()); k++) {
