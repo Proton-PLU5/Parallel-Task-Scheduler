@@ -14,6 +14,8 @@ public class DFSBranchAndBound {
     private int[] startTime;
     private int[] processorFreeAt;
     private int[] indegreeRemaining;
+    private final int[] bottomLevel;
+
     private int scheduledCount;
     private int makespan;
 
@@ -31,6 +33,53 @@ public class DFSBranchAndBound {
         this.graph = graph;
         this.numProcessors = numProcessors;
         this.log = new ArrayDeque<>();
+        this.bottomLevel = computeBottomLevel(graph);
+    }
+
+    /**
+     * For every unscheduled task, estimate the longest chain of tasks that must be completed after it, including itself.
+     * This is used to prune the search space.
+     *
+     * @param graph The task graph
+     * @return An array where bottomLevel[i] is the length of the longest path from task i to the end task, including the weight of task i itself.
+     */
+    private int[] computeBottomLevel(TaskGraph graph) {
+        int n = graph.taskCount();
+        int[] bottomLevel = new int[n];
+        int[] order = graph.topologicalOrder();
+
+        // Initialize bottom level with the weight of each task
+        for (int i = 0; i < n; i++) {
+            bottomLevel[i] = graph.weight(i);
+        }
+
+        // Process tasks in reverse topological order
+        for (int i = n - 1; i >= 0; i--) {
+            int task = order[i];
+
+            for (int k = graph.childStart(task); k < graph.childEnd(task); k++) {
+                int child = graph.childAt(k);
+                bottomLevel[task] = Math.max(bottomLevel[task], graph.weight(task) + bottomLevel[child]);
+            }
+        }
+
+        return bottomLevel;
+    }
+
+    /**
+     * Computes a lower bound on the makespan based on the current partial schedule.
+     *
+     * @return The lower bound
+     */
+    private int lowerBound() {
+        int bound = makespan;
+        for (int task = 0; task < graph.taskCount(); task++) {
+            if (processorOf[task] != -1) {
+                bound = Math.max(bound, startTime[task] + bottomLevel[task]);
+            }
+        }
+
+        return bound;
     }
 
     public Schedule solve() {
@@ -65,15 +114,15 @@ public class DFSBranchAndBound {
             // If so then update the best schedule.
             if (makespan < best) {
                 best = makespan;
-                bestSchedule = new Schedule(graph, startTime, processorOf, numProcessors);
+                bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
             }
 
             // Otherwise return
             return;
         }
 
-        if (makespan >= best) {
-            // Prune if it's slower than the best we have seen.
+        if (lowerBound() >= best) {
+            // Lower bound pruning
             return;
         }
 
