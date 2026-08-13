@@ -3,26 +3,22 @@ package se306.scheduler.schedule.parallel;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.schedule.Schedule;
 
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ParallelAlgorithmn {
 
     private final TaskGraph graph;
     private final int numProcessors;
-    private int scheduledCount;
-
-    private int best;
-    private Schedule bestSchedule;
-    private int currentBound;
     private final int[] bottomLevel;
+    private final ForkJoinPool pool;
+    private final int parallelDepthCutoff;
 
-    private Executor executor;
+    private volatile int best;
+    private volatile Schedule bestSchedule;
 
     public ParallelAlgorithmn(TaskGraph graph, int numProcessors, int numThreads) {
         if (numProcessors < 1) {
@@ -31,8 +27,12 @@ public class ParallelAlgorithmn {
 
         this.graph = graph;
         this.numProcessors = numProcessors;
-        this.executor = Executors.newFixedThreadPool(numThreads);
         this.bottomLevel = computeBottomLevel(graph);
+
+        this.pool = new ForkJoinPool(numThreads);
+
+        // A variable used to limit creation of new branches after this many tasks are placed.
+        this.parallelDepthCutoff = Math.min(graph.taskCount(), 4);
     }
 
     /**
@@ -65,10 +65,13 @@ public class ParallelAlgorithmn {
         return bottomLevel;
     }
 
-
+    /**
+     * Solve for the best possible schedule
+     *
+     * @return The best schedule
+     */
     public Schedule solve() {
         int n = graph.taskCount();
-        int makespan = 0;
         bestSchedule = null;
         best = Integer.MAX_VALUE;
 
@@ -78,73 +81,67 @@ public class ParallelAlgorithmn {
         int[] indegreeRemaining = new int[n];
 
         // Populate initial values
-        java.util.Arrays.fill(processorOf, -1);
-        java.util.Arrays.fill(startTime, -1);
+        Arrays.fill(processorOf, -1);
+        Arrays.fill(startTime, -1);
 
         for (int t = 0; t < n; t++) {
             indegreeRemaining[t] = graph.parentCount(t);
         }
 
-        int startTask = 0;
+        int makespan = 0;
 
-        SearchTask task = new SearchTask(
+        SearchTask root = new SearchTask(
                 this,
                 makespan,
                 startTime,
+                processorOf,
+                processorFreeAt,
                 indegreeRemaining,
-                best,
-                startTask,
+                0,
                 0
         );
+
+        pool.invoke(root);
+        pool.shutdown();
 
         return this.bestSchedule;
     }
 
-    public synchronized void setBestSchedule(Schedule bestSchedule) {
-        this.bestSchedule = bestSchedule;
-    }
-
-    public synchronized void setBest(int newBest) {
-        this.best = newBest;
-    }
-
+    /**
+     * Compare the makeSpan with the current best, and if it is smaller than the current best,
+     * Update the best schedule to use the new startTimes and processorOfs.
+     *
+     * @param makespan The makespan of the new schedule
+     * @param startTime The startTime of the new schedule
+     * @param processorOf the processorOf of the new schedule
+     */
     public synchronized void compareAndSetBestSchedule(
             int makespan,
             int[] startTime,
             int[] processorOf) {
-        if (makespan < this.getBest()) {
-            setBest(makespan);
+        if (makespan < this.best) {
+            best = makespan;
             bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
         }
-    }
-
-    public synchronized void updateBound(int newBound) {
-        this.currentBound = Math.max(currentBound, newBound);
-    }
-
-    public void createNewThread(SearchTask task) {
-        this.executor.execute(task);
-    }
-
-    public int getNumProcessors() {
-        return this.numProcessors;
-    }
-
-    public int getLowerBound() {
-        return currentBound;
-    }
-
-    public int getBest() {
-        return this.best;
     }
 
     public TaskGraph getGraph() {
         return this.graph;
     }
 
-    public int getBottomLevel(int task) {
-        return this.bottomLevel[task];
+    public int getBest() {
+        return this.best;
     }
 
+    public int getNumProcessors() {
+        return this.numProcessors;
+    }
 
+    public int getBottomLevel(int task) {
+        return bottomLevel[task];
+    }
+
+    public int getParallelDepthCutoff() {
+        return parallelDepthCutoff;
+    }
 }
