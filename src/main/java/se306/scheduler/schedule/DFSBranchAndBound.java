@@ -130,6 +130,13 @@ public class DFSBranchAndBound {
         }
     }
 
+    /**
+     * Determines the next ready task whose dependencies have already been scheduled.
+     *
+     * TODO: Optimize this step so its better than O(N)?
+     *
+     * @return an integer representing the task.
+     */
     private int nextReadyTask() {
         for (int task = 0; task < graph.taskCount(); task++) {
             if (processorOf[task] == -1 && indegreeRemaining[task] == 0) return task;
