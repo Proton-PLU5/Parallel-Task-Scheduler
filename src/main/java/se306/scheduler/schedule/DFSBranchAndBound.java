@@ -1,6 +1,7 @@
 package se306.scheduler.schedule;
 
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.gui.SearchListener;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -9,6 +10,7 @@ public class DFSBranchAndBound {
 
     private final TaskGraph graph;
     private final int numProcessors;
+    private final SearchListener listener;
 
     private int[] processorOf;
     private int[] startTime;
@@ -33,6 +35,20 @@ public class DFSBranchAndBound {
 
         this.graph = graph;
         this.numProcessors = numProcessors;
+        this.listener = null;
+        this.log = new ArrayDeque<>();
+        this.bottomLevel = computeBottomLevel(graph);
+    }
+
+    // Alternate constructor without SearchListener for when visualisation isn't chosen
+    public DFSBranchAndBound(TaskGraph graph, int numProcessors, SearchListener listener) {
+        if (numProcessors < 1) {
+            throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
+        }
+
+        this.graph = graph;
+        this.numProcessors = numProcessors;
+        this.listener = listener;
         this.log = new ArrayDeque<>();
         this.bottomLevel = computeBottomLevel(graph);
     }
@@ -109,6 +125,10 @@ public class DFSBranchAndBound {
             if (makespan < best) {
                 best = makespan;
                 bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
+ 
+                if (listener != null) {
+                    listener.onNewBestSchedule(graph, bestSchedule);
+                }
             }
 
             // Otherwise return

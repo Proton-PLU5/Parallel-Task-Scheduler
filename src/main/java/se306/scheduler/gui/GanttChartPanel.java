@@ -42,12 +42,11 @@ public class GanttChartPanel extends Canvas {
         gc.setStroke(Color.LIGHTGRAY);
         for (int t = 0; t <= maxTime; t += 2) {
             double y = TOP_MARGIN + t * PIXELS_PER_UNIT;
-            gc.strokeLine(LEFT_MARGIN, y, chartRight, y);   // full-width now, not just a 5px tick
+            gc.strokeLine(LEFT_MARGIN, y, chartRight, y);
             gc.setFill(Color.BLACK);
             gc.fillText(String.valueOf(t), LEFT_MARGIN - 8, y);
         }
 
-        // Task bars, now with visible borders
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.TOP);
         for (int t = 0; t < schedule.taskCount(); t++) {
