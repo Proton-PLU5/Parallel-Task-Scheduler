@@ -15,7 +15,6 @@ public class MainWindowController {
     @FXML
     public void initialize() {
         ganttChart = new GanttChartPanel(0, 0);
-        chartContainer.setStyle("-fx-background-color: blue;");
 
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(chartContainer.widthProperty());

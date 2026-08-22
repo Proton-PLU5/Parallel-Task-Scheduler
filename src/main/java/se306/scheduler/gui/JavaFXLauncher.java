@@ -38,7 +38,9 @@ public class JavaFXLauncher extends Application {
 
         MainWindow window = new MainWindow(controller.getGanttChart());
 
-        primaryStage.setScene(new Scene(root, 1280, 720));
+        Scene scene = new Scene(root, 1280, 720);
+        primaryStage.setScene(scene);
+        scene.getStylesheets().add(getClass().getResource("/main-window.css").toExternalForm());
         primaryStage.setTitle("Scheduler Visualizer");
         primaryStage.setResizable(false);
         primaryStage.show();
