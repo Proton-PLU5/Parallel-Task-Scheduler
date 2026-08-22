@@ -2,6 +2,9 @@ package se306.scheduler;
 
 import java.io.IOException;
 
+import se306.scheduler.algorithm.Algorithm;
+import se306.scheduler.algorithm.SequentialAlgorithm;
+import se306.scheduler.algorithm.parallel.ParallelAlgorithm;
 import se306.scheduler.cli.CliArgumentException;
 import se306.scheduler.cli.CliArguments;
 import se306.scheduler.graph.GraphValidationException;
@@ -47,7 +50,16 @@ public final class Main {
 
             // TODO (WBS 3.x): replace the greedy scheduler with the branch-and-bound search, using
             // arguments.coreCount() cores and visualising the search when arguments.visualise().
-            schedule = new ListScheduler(graph, arguments.processorCount()).solve();
+            int coreCount = arguments.coreCount();
+
+            Algorithm algorithm;
+            if (coreCount > 1) {
+                algorithm = new ParallelAlgorithm(graph, arguments.processorCount(), coreCount);
+            } else {
+                algorithm = new SequentialAlgorithm(graph, arguments.processorCount());
+            }
+            schedule = algorithm.solve();
+
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);

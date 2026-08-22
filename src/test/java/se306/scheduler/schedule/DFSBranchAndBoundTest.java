@@ -3,14 +3,14 @@ package se306.scheduler.schedule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import se306.scheduler.algorithm.DFSBranchAndBound;
+import se306.scheduler.algorithm.SequentialAlgorithm;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link DFSBranchAndBound} (Milestone 1: a valid, not necessarily optimal, schedule).
+ * Tests for {@link SequentialAlgorithm} (Milestone 1: a valid, not necessarily optimal, schedule).
  *
  * <p>Small graphs get hand-traced tests with exact expected start times/processors. Larger
  * graphs use {@link #assertScheduleRespectsConstraints}, which checks no overlap per processor
@@ -32,7 +32,7 @@ class DFSBranchAndBoundTest {
         gb.addNode("A", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new DFSBranchAndBound(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(g.indexOf("A")));
         assertEquals(0, s.processor(g.indexOf("A")));
@@ -46,7 +46,7 @@ class DFSBranchAndBoundTest {
         gb.addNode("A", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new DFSBranchAndBound(g, 4).solve();
+        Schedule s = new SequentialAlgorithm(g, 4).solve();
 
         assertEquals(0, s.startTime(g.indexOf("A")));
         assertEquals(0, s.processor(g.indexOf("A")));
@@ -60,8 +60,8 @@ class DFSBranchAndBoundTest {
         gb.addNode("A", 1);
         TaskGraph g = gb.build();
 
-        assertThrows(IllegalArgumentException.class, () -> new DFSBranchAndBound(g, 0));
-        assertThrows(IllegalArgumentException.class, () -> new DFSBranchAndBound(g, -1));
+        assertThrows(IllegalArgumentException.class, () -> new SequentialAlgorithm(g, 0));
+        assertThrows(IllegalArgumentException.class, () -> new SequentialAlgorithm(g, -1));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ class DFSBranchAndBoundTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new DFSBranchAndBound(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Both tasks are ready at t=0. The scheduler examines processors in index order,
         // and tasks are considered in topological/declaration order. Therefore:
@@ -102,7 +102,7 @@ class DFSBranchAndBoundTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new DFSBranchAndBound(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(a));
         assertEquals(4, s.startTime(b));
@@ -130,7 +130,7 @@ class DFSBranchAndBoundTest {
         int b = g.indexOf("B");
         int c = g.indexOf("C");
 
-        Schedule s = new DFSBranchAndBound(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(a));
         assertEquals(2, s.startTime(b));
@@ -154,7 +154,7 @@ class DFSBranchAndBoundTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new DFSBranchAndBound(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Compare earliest-start-time for B on each processor:
         // - On P0 (same as A): ready = max(free[0]=10, finish(A)+0) = 10.
@@ -181,7 +181,7 @@ class DFSBranchAndBoundTest {
         int b = g.indexOf("B");
         int c = g.indexOf("C");
 
-        Schedule s = new DFSBranchAndBound(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Scheduling step-by-step:
         // - A scheduled on P0 at t=0 (P0 free until t=2).
@@ -219,7 +219,7 @@ class DFSBranchAndBoundTest {
         TaskGraph g = gb.build();
 
         for (int p = 1; p <= 3; p++) {
-            Schedule s = new DFSBranchAndBound(g, p).solve();
+            Schedule s = new SequentialAlgorithm(g, p).solve();
             assertScheduleRespectsConstraints(g, s);
             assertTrue(s.makespan() >= g.weight(g.indexOf("A")) + g.weight(g.indexOf("C"))
                             + g.weight(g.indexOf("D")),
@@ -244,7 +244,7 @@ class DFSBranchAndBoundTest {
         TaskGraph g = gb.build();
 
         for (int p = 1; p <= 4; p++) {
-            Schedule s = new DFSBranchAndBound(g, p).solve();
+            Schedule s = new SequentialAlgorithm(g, p).solve();
             assertScheduleRespectsConstraints(g, s);
         }
     }
@@ -258,7 +258,7 @@ class DFSBranchAndBoundTest {
         gb.addEdge("A", "B", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new DFSBranchAndBound(g, 8).solve();
+        Schedule s = new SequentialAlgorithm(g, 8).solve();
 
         assertScheduleRespectsConstraints(g, s);
         // With only one real dependency, extra processors can't help this chain.
@@ -271,7 +271,7 @@ class DFSBranchAndBoundTest {
         GraphBuilder gb = new GraphBuilder();
         TaskGraph g = gb.build();
 
-        Schedule s = new DFSBranchAndBound(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.taskCount());
         assertEquals(0, s.makespan());
@@ -293,7 +293,7 @@ class DFSBranchAndBoundTest {
         gb.addEdge("C", "D", 0);
         TaskGraph g = gb.build();
 
-        Schedule s = new DFSBranchAndBound(g, 4).solve();
+        Schedule s = new SequentialAlgorithm(g, 4).solve();
 
         // A, B, C should be placed on processors 0,1,2 respectively (declaration order)
         assertEquals(0, s.processor(g.indexOf("A")));
