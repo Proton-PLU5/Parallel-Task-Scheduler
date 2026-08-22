@@ -179,6 +179,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         }
 
         int task = nextReadyTask();
+
         if (task == -1) return;
         exploreProcessors(task);
     }
@@ -205,6 +206,6 @@ public abstract class AbstractSearch extends RecursiveAction {
 
     @Override
     protected void compute() {
-
+        search();
     }
 }
