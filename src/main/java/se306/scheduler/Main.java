@@ -2,6 +2,9 @@ package se306.scheduler;
 
 import java.io.IOException;
 
+import se306.scheduler.algorithm.Algorithm;
+import se306.scheduler.algorithm.SequentialAlgorithm;
+import se306.scheduler.algorithm.parallel.ParallelAlgorithm;
 import se306.scheduler.cli.CliArgumentException;
 import se306.scheduler.cli.CliArguments;
 import se306.scheduler.graph.GraphValidationException;
@@ -11,7 +14,7 @@ import se306.scheduler.gui.MainWindow;
 import se306.scheduler.io.DotOutputWriter;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
-import se306.scheduler.schedule.DFSBranchAndBound;
+import se306.scheduler.algorithm.ListScheduler;
 import se306.scheduler.schedule.Schedule;
 
 /**
@@ -47,17 +50,22 @@ public final class Main {
         try {
             graph = new DotParser().parse(arguments.inputFile());
 
-            // TODO (WBS 3.x): use arguments.coreCount() cores once the search is parallelised.
-            if (arguments.visualise()) {
-                // in Main.java, right before launchAndGetWindow
-                System.out.println("About to open window: " + System.currentTimeMillis());
-                MainWindow window = JavaFXLauncher.launchAndGetWindow(args);
-                System.out.println("Window ready, starting search: " + System.currentTimeMillis());
-                schedule = new DFSBranchAndBound(graph, arguments.processorCount(), window).solve();
-                System.out.println("Search done: " + System.currentTimeMillis());
-            } else {
-                schedule = new DFSBranchAndBound(graph, arguments.processorCount()).solve();
-            }
+        MainWindow window = null;
+
+        if (arguments.visualise()) {
+            window = JavaFXLauncher.launchAndGetWindow(args);
+        }
+
+        Algorithm algorithm;
+
+        if (arguments.coreCount() > 1) {
+            algorithm = new ParallelAlgorithm(graph, arguments.processorCount(), arguments.coreCount(), window);
+        } else {
+            algorithm = new SequentialAlgorithm(graph, arguments.processorCount(), window);
+        }
+
+        schedule = algorithm.solve();
+
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
             System.exit(1);
