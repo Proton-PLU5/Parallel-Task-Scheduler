@@ -7,10 +7,10 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<BorderPane prefHeight="720" prefWidth="1280" style="-fx-background-color: #494949;" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="se306.scheduler.gui.MainWindowController">
+<BorderPane prefHeight="720" prefWidth="1280" style="-fx-background-color: #7c7c7c;" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="se306.scheduler.gui.MainWindowController">
             
     <center>
-        <StackPane fx:id="chartContainer" />
+        <StackPane fx:id="chartContainer" style="-fx-background-color: transparent;" />
     </center>
 
     <bottom>
