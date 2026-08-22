@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
-import se306.scheduler.schedule.ListScheduler;
+import se306.scheduler.algorithm.ListScheduler;
 import se306.scheduler.schedule.Schedule;
 
 /**

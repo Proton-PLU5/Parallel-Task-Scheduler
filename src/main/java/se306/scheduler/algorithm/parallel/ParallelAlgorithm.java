@@ -1,26 +1,22 @@
-package se306.scheduler.schedule.parallel;
+package se306.scheduler.algorithm.parallel;
 
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.schedule.Schedule;
 
 import java.util.*;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class ParallelAlgorithmn {
+public class ParallelAlgorithm {
 
     private final TaskGraph graph;
     private final int numProcessors;
     private final int[] bottomLevel;
     private final ForkJoinPool pool;
     private final int parallelDepthCutoff;
-
     private volatile int best;
     private volatile Schedule bestSchedule;
 
-    public ParallelAlgorithmn(TaskGraph graph, int numProcessors, int numThreads) {
+    public ParallelAlgorithm(TaskGraph graph, int numProcessors, int numThreads) {
         if (numProcessors < 1) {
             throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
         }

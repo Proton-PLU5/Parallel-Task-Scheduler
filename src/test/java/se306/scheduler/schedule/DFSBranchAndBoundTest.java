@@ -3,6 +3,7 @@ package se306.scheduler.schedule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import se306.scheduler.algorithm.DFSBranchAndBound;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 

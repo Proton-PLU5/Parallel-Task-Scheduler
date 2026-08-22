@@ -1,16 +1,14 @@
-package se306.scheduler.schedule.parallel;
+package se306.scheduler.algorithm.parallel;
 
 import se306.scheduler.graph.TaskGraph;
-import se306.scheduler.schedule.Schedule;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RecursiveAction;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class SearchTask extends RecursiveAction {
 
-    private ParallelAlgorithmn parallelAlgorithmn;
+    private ParallelAlgorithm parallelAlgorithmn;
     private TaskGraph graph;
 
     private final int makespan;
@@ -25,7 +23,7 @@ public class SearchTask extends RecursiveAction {
     private final int[] indegreeRemaining;
 
     public SearchTask(
-            ParallelAlgorithmn algorithm,
+            ParallelAlgorithm algorithm,
             int makespan,
             int[] startTime,
             int[] processorOf,
