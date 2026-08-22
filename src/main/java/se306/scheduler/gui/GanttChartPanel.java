@@ -21,11 +21,19 @@ public class GanttChartPanel extends Canvas {
     }
 
     public void renderSchedule(TaskGraph graph, Schedule schedule) {
+        int numProcessors = schedule.numProcessors();
+        int maxTime = schedule.makespan();
+
+        double requiredWidth = LEFT_MARGIN + numProcessors * COLUMN_WIDTH + 20;
+        double requiredHeight = TOP_MARGIN + maxTime * PIXELS_PER_UNIT + 40;
+
+        setWidth(Math.max(requiredWidth, getWidth()));
+        setHeight(Math.max(requiredHeight, getHeight()));
+
+        double chartRight = LEFT_MARGIN + numProcessors * COLUMN_WIDTH;
+
         GraphicsContext gc = getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
-
-        int numProcessors = schedule.numProcessors();
-        double chartRight = LEFT_MARGIN + numProcessors * COLUMN_WIDTH;
 
         // Processor column headers
         gc.setFill(Color.BLACK);
@@ -36,7 +44,6 @@ public class GanttChartPanel extends Canvas {
         }
 
         // Time axis: full-width gridlines + labels
-        int maxTime = schedule.makespan();
         gc.setTextAlign(TextAlignment.RIGHT);
         gc.setTextBaseline(VPos.CENTER);
         gc.setStroke(Color.LIGHTGRAY);
@@ -64,7 +71,7 @@ public class GanttChartPanel extends Canvas {
 
             gc.setStroke(Color.DARKSLATEGRAY);
             gc.setLineWidth(1.5);
-            gc.strokeRect(x, y, w, h);   // border around each block
+            gc.strokeRect(x, y, w, h);
 
             gc.setFill(Color.WHITE);
             gc.fillText(graph.name(t), x + 5, y + 5);

@@ -126,11 +126,11 @@ public class DFSBranchAndBound {
                 best = makespan;
                 bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
  
+                // When we have a new best schedule, call the listener to update the GUI
                 if (listener != null) {
                     listener.onNewBestSchedule(graph, bestSchedule);
                 }
             }
-
             // Otherwise return
             return;
         }

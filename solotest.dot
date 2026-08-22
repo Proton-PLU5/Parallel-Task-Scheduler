@@ -1,0 +1,3 @@
+digraph "single" {
+    onlytask [Weight=5];
+}
