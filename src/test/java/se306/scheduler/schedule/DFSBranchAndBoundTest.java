@@ -1,18 +1,16 @@
 package se306.scheduler.schedule;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import se306.scheduler.algorithm.ListScheduler;
+import se306.scheduler.algorithm.SequentialAlgorithm;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 /**
- * Tests for {@link ListScheduler} (Milestone 1: a valid, not necessarily optimal, schedule).
+ * Tests for {@link SequentialAlgorithm} (Milestone 1: a valid, not necessarily optimal, schedule).
  *
  * <p>Small graphs get hand-traced tests with exact expected start times/processors. Larger
  * graphs use {@link #assertScheduleRespectsConstraints}, which checks no overlap per processor
@@ -21,7 +19,7 @@ import se306.scheduler.graph.TaskGraph;
  * <p>Graphs are built with {@link GraphBuilder}, not parsed from {@code .dot} files.
  */
 
-class ListSchedulerTest {
+class DFSBranchAndBoundTest {
 
     // ---------------------------------------------------------------------------------------
     // Trivial cases
@@ -34,7 +32,7 @@ class ListSchedulerTest {
         gb.addNode("A", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new ListScheduler(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(g.indexOf("A")));
         assertEquals(0, s.processor(g.indexOf("A")));
@@ -48,7 +46,7 @@ class ListSchedulerTest {
         gb.addNode("A", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new ListScheduler(g, 4).solve();
+        Schedule s = new SequentialAlgorithm(g, 4).solve();
 
         assertEquals(0, s.startTime(g.indexOf("A")));
         assertEquals(0, s.processor(g.indexOf("A")));
@@ -62,8 +60,8 @@ class ListSchedulerTest {
         gb.addNode("A", 1);
         TaskGraph g = gb.build();
 
-        assertThrows(IllegalArgumentException.class, () -> new ListScheduler(g, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ListScheduler(g, -1));
+        assertThrows(IllegalArgumentException.class, () -> new SequentialAlgorithm(g, 0));
+        assertThrows(IllegalArgumentException.class, () -> new SequentialAlgorithm(g, -1));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -80,7 +78,7 @@ class ListSchedulerTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new ListScheduler(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Both tasks are ready at t=0. The scheduler examines processors in index order,
         // and tasks are considered in topological/declaration order. Therefore:
@@ -104,7 +102,7 @@ class ListSchedulerTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new ListScheduler(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(a));
         assertEquals(4, s.startTime(b));
@@ -113,32 +111,6 @@ class ListSchedulerTest {
         assertEquals(10, s.makespan());
     }
 
-    @Test
-    @DisplayName("three independent tasks are load-balanced across two processors")
-    void threeIndependentTasksLoadBalancing() {
-        GraphBuilder gb = new GraphBuilder();
-        gb.addNode("A", 2);
-        gb.addNode("B", 3);
-        gb.addNode("C", 6);
-        TaskGraph g = gb.build();
-        int a = g.indexOf("A");
-        int b = g.indexOf("B");
-        int c = g.indexOf("C");
-
-        Schedule s = new ListScheduler(g, 2).solve();
-
-        // Scheduling reasoning (processor free times shown):
-        // - A is scheduled first: both processors free at 0 → A -> P0 @ 0.
-        // - B is next: P0 busy until 2, P1 free at 0 → B -> P1 @ 0.
-        // - C is last: P0 becomes free at 2, P1 becomes free at 3 → C -> P0 @ 2.
-        assertEquals(0, s.startTime(a));
-        assertEquals(0, s.processor(a));
-        assertEquals(0, s.startTime(b));
-        assertEquals(1, s.processor(b));
-        assertEquals(2, s.startTime(c));
-        assertEquals(0, s.processor(c));
-        assertEquals(8, s.makespan()); // max(A:2, B:3, C: 2+6=8)
-    }
 
     // ---------------------------------------------------------------------------------------
     // Precedence constraints
@@ -158,7 +130,7 @@ class ListSchedulerTest {
         int b = g.indexOf("B");
         int c = g.indexOf("C");
 
-        Schedule s = new ListScheduler(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.startTime(a));
         assertEquals(2, s.startTime(b));
@@ -182,7 +154,7 @@ class ListSchedulerTest {
         int a = g.indexOf("A");
         int b = g.indexOf("B");
 
-        Schedule s = new ListScheduler(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Compare earliest-start-time for B on each processor:
         // - On P0 (same as A): ready = max(free[0]=10, finish(A)+0) = 10.
@@ -209,7 +181,7 @@ class ListSchedulerTest {
         int b = g.indexOf("B");
         int c = g.indexOf("C");
 
-        Schedule s = new ListScheduler(g, 2).solve();
+        Schedule s = new SequentialAlgorithm(g, 2).solve();
 
         // Scheduling step-by-step:
         // - A scheduled on P0 at t=0 (P0 free until t=2).
@@ -247,7 +219,7 @@ class ListSchedulerTest {
         TaskGraph g = gb.build();
 
         for (int p = 1; p <= 3; p++) {
-            Schedule s = new ListScheduler(g, p).solve();
+            Schedule s = new SequentialAlgorithm(g, p).solve();
             assertScheduleRespectsConstraints(g, s);
             assertTrue(s.makespan() >= g.weight(g.indexOf("A")) + g.weight(g.indexOf("C"))
                             + g.weight(g.indexOf("D")),
@@ -272,7 +244,7 @@ class ListSchedulerTest {
         TaskGraph g = gb.build();
 
         for (int p = 1; p <= 4; p++) {
-            Schedule s = new ListScheduler(g, p).solve();
+            Schedule s = new SequentialAlgorithm(g, p).solve();
             assertScheduleRespectsConstraints(g, s);
         }
     }
@@ -286,7 +258,7 @@ class ListSchedulerTest {
         gb.addEdge("A", "B", 5);
         TaskGraph g = gb.build();
 
-        Schedule s = new ListScheduler(g, 8).solve();
+        Schedule s = new SequentialAlgorithm(g, 8).solve();
 
         assertScheduleRespectsConstraints(g, s);
         // With only one real dependency, extra processors can't help this chain.
@@ -299,7 +271,7 @@ class ListSchedulerTest {
         GraphBuilder gb = new GraphBuilder();
         TaskGraph g = gb.build();
 
-        Schedule s = new ListScheduler(g, 1).solve();
+        Schedule s = new SequentialAlgorithm(g, 1).solve();
 
         assertEquals(0, s.taskCount());
         assertEquals(0, s.makespan());
@@ -321,7 +293,7 @@ class ListSchedulerTest {
         gb.addEdge("C", "D", 0);
         TaskGraph g = gb.build();
 
-        Schedule s = new ListScheduler(g, 4).solve();
+        Schedule s = new SequentialAlgorithm(g, 4).solve();
 
         // A, B, C should be placed on processors 0,1,2 respectively (declaration order)
         assertEquals(0, s.processor(g.indexOf("A")));

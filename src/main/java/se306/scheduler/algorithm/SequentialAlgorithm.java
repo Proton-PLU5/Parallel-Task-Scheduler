@@ -1,0 +1,26 @@
+package se306.scheduler.algorithm;
+
+import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.schedule.Schedule;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
+
+    public SequentialAlgorithm(TaskGraph graph, int numProcessors) {
+        super(new SearchContext(graph, numProcessors));
+
+    }
+
+    @Override
+    protected void exploreProcessors(int task) {
+        exploreSequentially(task, 0, ctx.getNumProcessors());
+    }
+
+    @Override
+    public Schedule solve() {
+        search();
+        return ctx.getBestSchedule();
+    }
+}

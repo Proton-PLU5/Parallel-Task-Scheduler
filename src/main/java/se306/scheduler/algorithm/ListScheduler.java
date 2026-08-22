@@ -1,6 +1,7 @@
-package se306.scheduler.schedule;
+package se306.scheduler.algorithm;
 
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.schedule.Schedule;
 
 /**
  * Implements a greedy list scheduler (Milestone 1) that produces a valid
