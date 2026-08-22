@@ -57,6 +57,8 @@ public class MainWindowController {
                 lastDragPosition[1] = event.getSceneY();
             }
         });
+
+        // TODO: Add zooming
     }
 
     @FXML
@@ -75,5 +77,9 @@ public class MainWindowController {
 
     public GanttChartPanel getGanttChart() {
         return ganttChart;
+    }
+
+    public SearchTreePanel getSearchTree() {
+        return searchTree;
     }
 }
