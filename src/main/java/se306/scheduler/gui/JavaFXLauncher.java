@@ -1,7 +1,9 @@
 package se306.scheduler.gui;
 
 import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -29,34 +31,14 @@ public class JavaFXLauncher extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) {
-        GanttChartPanel ganttChart = new GanttChartPanel(1280, 720);
-        MainWindow window = new MainWindow(ganttChart);
+    public void start(Stage primaryStage) throws Exception {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/MainWindow.fxml"));
+        Parent root = loader.load();
+        MainWindowController controller = loader.getController();
 
-        StackPane chartContainer = new StackPane(ganttChart);
-        StackPane.setAlignment(ganttChart, Pos.TOP_LEFT);
-        chartContainer.setPickOnBounds(true);
-        chartContainer.setStyle("-fx-background-color: #494949;");
+        MainWindow window = new MainWindow(controller.getGanttChart());
 
-        final double[] lastDragPosition = new double[2];
-        chartContainer.setOnMousePressed(event -> {
-            if (!event.isSynthesized() && event.getButton() == MouseButton.PRIMARY) {
-                lastDragPosition[0] = event.getSceneX();
-                lastDragPosition[1] = event.getSceneY();
-            }
-        });
-        chartContainer.setOnMouseDragged(event -> {
-            if (!event.isSynthesized() && event.isPrimaryButtonDown()) {
-                ganttChart.setTranslateX(ganttChart.getTranslateX()
-                    + event.getSceneX() - lastDragPosition[0]);
-                ganttChart.setTranslateY(ganttChart.getTranslateY()
-                    + event.getSceneY() - lastDragPosition[1]);
-                lastDragPosition[0] = event.getSceneX();
-                lastDragPosition[1] = event.getSceneY();
-            }
-        });
-
-        primaryStage.setScene(new Scene(chartContainer, 1280, 720, Color.web("#494949")));
+        primaryStage.setScene(new Scene(root, 1280, 720));
         primaryStage.setTitle("Scheduler Visualizer");
         primaryStage.setResizable(false);
         primaryStage.show();
