@@ -4,6 +4,8 @@ import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * The shared current best state. This class contains the shared state between threads, and handles the concurrency
  * management when updating the current best state.
@@ -16,6 +18,9 @@ public class SearchContext {
 
     private volatile int best = Integer.MAX_VALUE;
     private volatile Schedule bestSchedule;
+
+    private final AtomicLong branchesExplored = new AtomicLong();
+    private final AtomicLong branchesPruned = new AtomicLong();
 
     public SearchContext(TaskGraph graph, int numProcessors) {
         if (numProcessors < 1) {
@@ -95,4 +100,9 @@ public class SearchContext {
     public int getBottomLevel(int task) { return bottomLevel[task]; }
     public int getBest() { return best; }
     public Schedule getBestSchedule() { return bestSchedule; }
+
+    public void incrementBranchesExplored() { branchesExplored.incrementAndGet(); }
+    public void incrementBranchesPruned() { branchesPruned.incrementAndGet(); }
+    public long getBranchesExplored() { return branchesExplored.get(); }
+    public long getBranchesPruned() { return branchesPruned.get(); }
 }

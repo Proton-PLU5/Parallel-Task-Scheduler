@@ -167,6 +167,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected void search() {
         TaskGraph graph = ctx.getGraph();
+        ctx.incrementBranchesExplored();
 
         if (scheduledCount == graph.taskCount()) {
             ctx.compareAndSetBestSchedule(makespan, startTime, processorOf);
@@ -175,6 +176,7 @@ public abstract class AbstractSearch extends RecursiveAction {
 
         if (lowerBound() >= ctx.getBest()) {
             // Lower bound pruning
+            ctx.incrementBranchesPruned();
             return;
         }
 
