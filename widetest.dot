@@ -1,0 +1,16 @@
+digraph "wide" {
+    start [Weight=2];
+    start -> t1 [Weight=1];
+    start -> t2 [Weight=1];
+    start -> t3 [Weight=1];
+    start -> t4 [Weight=1];
+    t1 [Weight=4];
+    t2 [Weight=3];
+    t3 [Weight=5];
+    t4 [Weight=2];
+    t1 -> end [Weight=1];
+    t2 -> end [Weight=1];
+    t3 -> end [Weight=1];
+    t4 -> end [Weight=1];
+    end [Weight=2];
+}

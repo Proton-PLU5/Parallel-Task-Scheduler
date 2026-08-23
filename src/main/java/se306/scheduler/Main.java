@@ -9,6 +9,8 @@ import se306.scheduler.cli.CliArgumentException;
 import se306.scheduler.cli.CliArguments;
 import se306.scheduler.graph.GraphValidationException;
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.gui.JavaFXLauncher;
+import se306.scheduler.gui.MainWindow;
 import se306.scheduler.io.DotOutputWriter;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
@@ -19,9 +21,9 @@ import se306.scheduler.schedule.Schedule;
  * Entry point: {@code java -jar scheduler.jar INPUT.dot P [-p N] [-v] [-o OUTPUT]}.
  *
  * <p>The whole pipeline runs here: {@link CliArguments} parses the command line, {@link DotParser}
- * reads the graph (WBS 2.2/2.3), {@link ListScheduler} schedules it and {@link DotOutputWriter}
- * writes the result (WBS 2.4). The stages still outstanding — the optimal search (WBS 3.x) and
- * visualisation — are marked with TODOs below; everything they need is already in {@code arguments}.
+ * reads the graph, {@link DFSBranchAndBound} finds the optimal schedule (WBS 3.x), and
+ * {@link DotOutputWriter} writes the result (WBS 2.4). When {@code -v} is given, a {@link MainWindow}
+ * is opened first and passed to the solver so the search can be watched live as it runs.
  *
  * <p>The schedule is always written to a file: to {@code OUTPUT} when {@code -o OUTPUT} is given, and
  * to {@code INPUT-output.dot} beside the input otherwise, as {@link CliArguments} decides.
@@ -48,17 +50,21 @@ public final class Main {
         try {
             graph = new DotParser().parse(arguments.inputFile());
 
-            // TODO (WBS 3.x): replace the greedy scheduler with the branch-and-bound search, using
-            // arguments.coreCount() cores and visualising the search when arguments.visualise().
-            int coreCount = arguments.coreCount();
+        MainWindow window = null;
 
-            Algorithm algorithm;
-            if (coreCount > 1) {
-                algorithm = new ParallelAlgorithm(graph, arguments.processorCount(), coreCount);
-            } else {
-                algorithm = new SequentialAlgorithm(graph, arguments.processorCount());
-            }
-            schedule = algorithm.solve();
+        if (arguments.visualise()) {
+            window = JavaFXLauncher.launchAndGetWindow(args);
+        }
+
+        Algorithm algorithm;
+
+        if (arguments.coreCount() > 1) {
+            algorithm = new ParallelAlgorithm(graph, arguments.processorCount(), arguments.coreCount(), window);
+        } else {
+            algorithm = new SequentialAlgorithm(graph, arguments.processorCount(), window);
+        }
+
+        schedule = algorithm.solve();
 
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());

@@ -1,6 +1,7 @@
 package se306.scheduler.algorithm;
 
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
 /**
@@ -11,6 +12,7 @@ public class SearchContext {
     private final TaskGraph graph;
     private final int numProcessors;
     private final int[] bottomLevel;
+    private final SearchListener listener;
 
     private volatile int best = Integer.MAX_VALUE;
     private volatile Schedule bestSchedule;
@@ -22,6 +24,17 @@ public class SearchContext {
         this.graph = graph;
         this.numProcessors = numProcessors;
         this.bottomLevel = computeBottomLevel(graph);
+        this.listener = null;
+    }
+
+    public SearchContext(TaskGraph graph, int numProcessors, SearchListener listener) {
+        if (numProcessors < 1) {
+            throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
+        }
+        this.graph = graph;
+        this.numProcessors = numProcessors;
+        this.bottomLevel = computeBottomLevel(graph);
+        this.listener = listener;
     }
 
     /**
@@ -69,6 +82,11 @@ public class SearchContext {
         if (makespan < this.best) {
             best = makespan;
             bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
+            
+            // When we have a new best schedule, call the listener to update the GUI
+            if (listener != null) {
+                listener.onNewBestSchedule(graph, bestSchedule);
+            }
         }
     }
 

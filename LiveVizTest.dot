@@ -1,0 +1,27 @@
+digraph "hard40" {
+    s [Weight=3];
+    s -> a1 [Weight=2]; s -> a2 [Weight=2]; s -> a3 [Weight=2]; s -> a4 [Weight=2]; s -> a5 [Weight=2]; s -> a6 [Weight=2];
+    a1 [Weight=5]; a2 [Weight=6]; a3 [Weight=5]; a4 [Weight=6]; a5 [Weight=5]; a6 [Weight=6];
+    a1 -> b1 [Weight=2]; a1 -> b2 [Weight=2];
+    a2 -> b2 [Weight=2]; a2 -> b3 [Weight=2];
+    a3 -> b3 [Weight=2]; a3 -> b4 [Weight=2];
+    a4 -> b4 [Weight=2]; a4 -> b5 [Weight=2];
+    a5 -> b5 [Weight=2]; a5 -> b6 [Weight=2];
+    a6 -> b6 [Weight=2]; a6 -> b1 [Weight=2];
+    b1 [Weight=5]; b2 [Weight=6]; b3 [Weight=5]; b4 [Weight=6]; b5 [Weight=5]; b6 [Weight=6];
+    b1 -> c1 [Weight=2]; b2 -> c1 [Weight=2]; b2 -> c2 [Weight=2];
+    b3 -> c2 [Weight=2]; b3 -> c3 [Weight=2]; b4 -> c3 [Weight=2]; b4 -> c4 [Weight=2];
+    b5 -> c4 [Weight=2]; b5 -> c5 [Weight=2]; b6 -> c5 [Weight=2]; b6 -> c1 [Weight=2];
+    c1 [Weight=6]; c2 [Weight=5]; c3 [Weight=6]; c4 [Weight=5]; c5 [Weight=6];
+    c1 -> d1 [Weight=2]; c2 -> d1 [Weight=2]; c2 -> d2 [Weight=2];
+    c3 -> d2 [Weight=2]; c3 -> d3 [Weight=2]; c4 -> d3 [Weight=2]; c4 -> d4 [Weight=2];
+    c5 -> d4 [Weight=2]; c5 -> d1 [Weight=2];
+    d1 [Weight=6]; d2 [Weight=5]; d3 [Weight=6]; d4 [Weight=5];
+    d1 -> e1 [Weight=2]; d2 -> e1 [Weight=2]; d2 -> e2 [Weight=2];
+    d3 -> e2 [Weight=2]; d3 -> e3 [Weight=2]; d4 -> e3 [Weight=2]; d4 -> e1 [Weight=2];
+    e1 [Weight=6]; e2 [Weight=5]; e3 [Weight=6];
+    e1 -> f1 [Weight=2]; e2 -> f1 [Weight=2]; e3 -> f1 [Weight=2];
+    f1 [Weight=4];
+    f1 -> end [Weight=1];
+    end [Weight=3];
+}

@@ -14,6 +14,7 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.10.2</junit.version>
+    <javafx.version>21.0.2</javafx.version>
     <jgrapht.version>1.5.2</jgrapht.version>
   </properties>
 
@@ -34,6 +35,21 @@
       <artifactId>junit-jupiter</artifactId>
       <version>${junit.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-controls</artifactId>
+        <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-graphics</artifactId>
+        <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-fxml</artifactId>
+        <version>${javafx.version}</version>
     </dependency>
   </dependencies>
 
@@ -73,6 +89,14 @@
         </executions>
       </plugin>
 
+      <plugin>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-maven-plugin</artifactId>
+          <version>0.0.8</version>
+          <configuration>
+              <mainClass>se306.scheduler.Main</mainClass>
+          </configuration>
+      </plugin>  
       <!--
         The project description requires the jar to be invoked as `java -jar scheduler.jar INPUT.dot P`,
         so package also drops a copy of the shaded jar at the project root. This runs after the shade
