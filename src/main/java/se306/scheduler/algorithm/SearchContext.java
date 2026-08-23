@@ -4,6 +4,8 @@ import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -11,13 +13,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * management when updating the current best state.
  */
 public class SearchContext {
+
+    /** One point on the convergence graph: a new best makespan found `elapsedMillis` into the search. */
+    public record Improvement(long elapsedMillis, int makespan) {}
+
     private final TaskGraph graph;
     private final int numProcessors;
     private final int[] bottomLevel;
     private final SearchListener listener;
+    private final long searchStartTime = System.currentTimeMillis();
 
     private volatile int best = Integer.MAX_VALUE;
     private volatile Schedule bestSchedule;
+    private final List<Improvement> improvementHistory = new ArrayList<>();
 
     private final AtomicLong branchesExplored = new AtomicLong();
     private final AtomicLong branchesPruned = new AtomicLong();
@@ -87,7 +95,8 @@ public class SearchContext {
         if (makespan < this.best) {
             best = makespan;
             bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
-            
+            improvementHistory.add(new Improvement(System.currentTimeMillis() - searchStartTime, makespan));
+
             // When we have a new best schedule, call the listener to update the GUI
             if (listener != null) {
                 listener.onNewBestSchedule(graph, bestSchedule);
@@ -105,4 +114,6 @@ public class SearchContext {
     public void incrementBranchesPruned() { branchesPruned.incrementAndGet(); }
     public long getBranchesExplored() { return branchesExplored.get(); }
     public long getBranchesPruned() { return branchesPruned.get(); }
+
+    public synchronized List<Improvement> getImprovementHistory() { return List.copyOf(improvementHistory); }
 }

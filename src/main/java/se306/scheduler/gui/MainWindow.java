@@ -84,6 +84,7 @@ public class MainWindow implements SearchListener {
                 monitoredContext.getBest(),
                 elapsedMillis,
                 usedMemoryBytes,
-                cpuLoadPercent);
+                cpuLoadPercent,
+                monitoredContext.getImprovementHistory());
     }
 }
