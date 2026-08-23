@@ -27,4 +27,9 @@ public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
         search();
         return ctx.getBestSchedule();
     }
+
+    @Override
+    public SearchContext getContext() {
+        return ctx;
+    }
 }

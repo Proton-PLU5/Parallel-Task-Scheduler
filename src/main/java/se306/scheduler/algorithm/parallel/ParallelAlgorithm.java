@@ -30,4 +30,9 @@ public class ParallelAlgorithm implements Algorithm {
         pool.shutdown();
         return context.getBestSchedule();
     }
+
+    @Override
+    public SearchContext getContext() {
+        return context;
+    }
 }
