@@ -32,7 +32,8 @@ public class JavaFXLauncher extends Application {
         Parent root = loader.load();
         MainWindowController controller = loader.getController();
 
-        MainWindow window = new MainWindow(controller.getGanttChart(), controller.getSearchTree());
+        MainWindow window = new MainWindow(
+                controller.getGanttChart(), controller.getSearchTree(), controller.getMetricsPanel());
 
         Scene scene = new Scene(root, 1280, 720);
         primaryStage.setScene(scene);

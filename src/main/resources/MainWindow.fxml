@@ -29,6 +29,8 @@
             </toggleGroup></ToggleButton>
 
             <ToggleButton fx:id="treeButton" onAction="#showSearchTree" stylesheets="@main-window.css" text="Search Tree" toggleGroup="$viewToggleGroup" />
+
+            <ToggleButton fx:id="metricsButton" onAction="#showMetrics" stylesheets="@main-window.css" text="Metrics" toggleGroup="$viewToggleGroup" />
         </HBox>
     </bottom>
 

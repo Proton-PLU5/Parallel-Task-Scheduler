@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 
@@ -13,12 +14,14 @@ public class MainWindowController {
 
     private GanttChartPanel ganttChart;
     private SearchTreePanel searchTree;
-    private StackPane currentPanel;
+    private MetricsPanel metricsPanel;
+    private Pane currentPanel;
 
     @FXML
     public void initialize() {
         ganttChart = new GanttChartPanel(0, 0);
         searchTree = new SearchTreePanel();
+        metricsPanel = new MetricsPanel();
 
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(chartContainer.widthProperty());
@@ -75,11 +78,22 @@ public class MainWindowController {
         StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
     }
 
+    @FXML
+    private void showMetrics() {
+        currentPanel = metricsPanel;
+        chartContainer.getChildren().setAll(currentPanel);
+        StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
+    }
+
     public GanttChartPanel getGanttChart() {
         return ganttChart;
     }
 
     public SearchTreePanel getSearchTree() {
         return searchTree;
+    }
+
+    public MetricsPanel getMetricsPanel() {
+        return metricsPanel;
     }
 }
