@@ -22,10 +22,11 @@ public abstract class AbstractSearch extends RecursiveAction {
     // Shared state context
     protected final SearchContext ctx;
 
-    protected int[] processorOf;
-    protected int[] startTime;
-    protected int[] processorFreeAt;
+    public int[] processorOf;
+    public int[] startTime;
+    public int[] processorFreeAt;
     protected int[] indegreeRemaining;
+    protected int[] taskCountOn;
 
     protected int scheduledCount;
     protected int makespan;
@@ -45,6 +46,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         this.startTime = new int[n];
         this.processorFreeAt = new int[ctx.getNumProcessors()];
         this.indegreeRemaining = new int[n];
+        this.taskCountOn = new int[ctx.getNumProcessors()];
 
         // Populate initial values
         Arrays.fill(processorOf, -1);
@@ -67,6 +69,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         this.startTime = parent.startTime.clone();
         this.processorFreeAt = parent.processorFreeAt.clone();
         this.indegreeRemaining = parent.indegreeRemaining.clone();
+        this.taskCountOn = parent.taskCountOn.clone();
 
         this.scheduledCount = parent.scheduledCount;
         this.makespan = parent.makespan;
@@ -74,10 +77,10 @@ public abstract class AbstractSearch extends RecursiveAction {
 
         // Create a fresh log, this clone is a new branch, so it never needs to undo
         // state it inherited from its parent.
-        this.log = new ArrayDeque<>(parent.log);;
+        this.log = new ArrayDeque<>();
     }
 
-    protected int lowerBound() {
+    public int lowerBound() {
         return Math.max(makespan, currentBound);
     }
 
@@ -88,7 +91,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      *
      * @return an integer representing the task.
      */
-    protected int nextReadyTask() {
+    public int nextReadyTask() {
         for (int task = 0; task < ctx.getGraph().taskCount(); task++) {
             if (processorOf[task] == -1 && indegreeRemaining[task] == 0) return task;
         }
@@ -103,7 +106,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      * @param task The task to be placed
      * @param processor The processor the task should be scheduled onto.
      */
-    protected void place(int task, int processor) {
+    public void place(int task, int processor) {
         int ready = processorFreeAt[processor];
         TaskGraph graph = ctx.getGraph();
 
@@ -123,6 +126,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         processorOf[task] = processor;
         startTime[task] = ready;
         processorFreeAt[processor] = ready + graph.weight(task);
+        taskCountOn[processor]++;
         makespan = Math.max(makespan, processorFreeAt[processor]);
 
         // Update the current bound
@@ -141,12 +145,13 @@ public abstract class AbstractSearch extends RecursiveAction {
      * Undoes the last scheduling operation by popping the log entry and restoring the previous state.
      * This is used for backtracking in the DFS search.
      */
-    protected void undo() {
+    public void undo() {
         LogEntry entry = log.pop();
         startTime[entry.task()] = -1;
         processorOf[entry.task()] = -1;
         processorFreeAt[entry.processor()] = entry.previousFreeAt();
         makespan = entry.previousMakespan();
+        taskCountOn[entry.processor()]--;
 
         // Restore the previous current bound
         currentBound = entry.previousBound();
@@ -185,10 +190,11 @@ public abstract class AbstractSearch extends RecursiveAction {
             return;
         }
 
-        int task = nextReadyTask();
-
-        if (task == -1) return;
-        exploreProcessors(task);
+        for (int task = 0; task < graph.taskCount(); task++) {
+            if (processorOf[task] == -1 && indegreeRemaining[task] == 0) {
+                exploreProcessors(task);
+            }
+        }
     }
 
     /**
@@ -200,9 +206,13 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected final void exploreSequentially(int task, int fromProcessor, int toProcessor) {
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
+            boolean isEmpty = taskCountOn[processor] == 0;
+
             place(task, processor);
             search();
             undo();
+
+            if (isEmpty) break; // All remaining processors would produce the same schedule so break.
         }
     }
 
