@@ -74,7 +74,7 @@ public abstract class AbstractSearch extends RecursiveAction {
 
         // Create a fresh log, this clone is a new branch, so it never needs to undo
         // state it inherited from its parent.
-        this.log = new ArrayDeque<>(parent.log);;
+        this.log = new ArrayDeque<>();
     }
 
     public int lowerBound() {
