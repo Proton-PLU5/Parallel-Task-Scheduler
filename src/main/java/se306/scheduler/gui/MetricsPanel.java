@@ -1,17 +1,21 @@
 package se306.scheduler.gui;
 
+import javafx.geometry.Pos;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
-import javafx.scene.layout.Priority;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 
 import se306.scheduler.algorithm.SearchContext.Improvement;
 
 import java.util.List;
 
-public class MetricsPanel extends VBox {
+public class MetricsPanel extends BorderPane {
+
+    private static final double CHART_WIDTH = 700;
+    private static final double CHART_HEIGHT = 340;
 
     private final Label statusLabel = new Label("Status: Running...");
     private final Label branchesLabel = new Label("Total branches: 0");
@@ -23,12 +27,12 @@ public class MetricsPanel extends VBox {
 
     private final NumberAxis convergenceXAxis = new NumberAxis();
     private final NumberAxis convergenceYAxis = new NumberAxis();
-    private final LineChart<Number, Number> convergenceChart =
-            new LineChart<>(convergenceXAxis, convergenceYAxis);
+    private final LineChart<Number, Number> convergenceChart = new LineChart<>(convergenceXAxis, convergenceYAxis);
     private final XYChart.Series<Number, Number> convergenceSeries = new XYChart.Series<>();
 
     public MetricsPanel() {
-        setSpacing(10);
+        VBox statsBox = new VBox(10, statusLabel, branchesLabel, prunedLabel, bestLabel, timeLabel, memoryLabel,
+                cpuLabel);
 
         convergenceXAxis.setLabel("Time (s)");
         convergenceYAxis.setLabel("Makespan");
@@ -37,11 +41,12 @@ public class MetricsPanel extends VBox {
         convergenceChart.setAnimated(false);
         convergenceChart.setLegendVisible(false);
         convergenceChart.getData().add(convergenceSeries);
-        VBox.setVgrow(convergenceChart, Priority.ALWAYS);
+        convergenceChart.setPrefSize(CHART_WIDTH, CHART_HEIGHT);
+        convergenceChart.setMaxSize(CHART_WIDTH, CHART_HEIGHT);
 
-        getChildren().addAll(
-                statusLabel, branchesLabel, prunedLabel, bestLabel, timeLabel, memoryLabel, cpuLabel,
-                convergenceChart);
+        setLeft(statsBox);
+        setRight(convergenceChart);
+        BorderPane.setAlignment(convergenceChart, Pos.TOP_CENTER);
     }
 
     public void markComplete() {
@@ -66,7 +71,8 @@ public class MetricsPanel extends VBox {
     }
 
     /**
-     * Appends only the points not already plotted, rather than clearing and rebuilding
+     * Appends only the points not already plotted, rather than clearing and
+     * rebuilding
      * everything each poll, since most polls have nothing new to add.
      */
     private void updateConvergenceChart(List<Improvement> history) {
@@ -78,8 +84,10 @@ public class MetricsPanel extends VBox {
         }
 
         if (!history.isEmpty()) {
-            // Each entry is only recorded when it improves on the previous best, so the history
-            // is always strictly decreasing: the first entry is the highest makespan seen, the
+            // Each entry is only recorded when it improves on the previous best, so the
+            // history
+            // is always strictly decreasing: the first entry is the highest makespan seen,
+            // the
             // last is the current best.
             int maxMakespan = history.get(0).makespan();
             int minMakespan = history.get(history.size() - 1).makespan();
