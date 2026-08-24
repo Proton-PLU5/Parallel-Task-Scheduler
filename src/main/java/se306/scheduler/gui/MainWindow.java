@@ -44,7 +44,7 @@ public class MainWindow implements SearchListener {
 
         Platform.runLater(() -> {
             pollingTimeline = new Timeline(
-                    new KeyFrame(POLL_INTERVAL, event -> metricsPanel.updateLive(monitoredContext.getCheckpoints())));
+                    new KeyFrame(POLL_INTERVAL, event -> metricsPanel.updateLive(monitoredContext.getCheckpointer().getCheckpoints())));
             pollingTimeline.setCycleCount(Timeline.INDEFINITE);
             pollingTimeline.play();
         });
@@ -59,7 +59,7 @@ public class MainWindow implements SearchListener {
             if (pollingTimeline != null) {
                 pollingTimeline.stop();
             }
-            metricsPanel.markComplete(monitoredContext.getCheckpoints());
+            metricsPanel.markComplete(monitoredContext.getCheckpointer().getCheckpoints());
         });
     }
 }

@@ -21,8 +21,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-
-import se306.scheduler.algorithm.SearchContext.Checkpoint;
+import se306.scheduler.algorithm.metrics.Checkpointer;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -56,7 +55,7 @@ public class MetricsPanel extends BorderPane {
     private final Label noConvergenceDataLabel =
             new Label("Not enough recorded steps to show a convergence trend.");
 
-    private List<Checkpoint> checkpoints = List.of();
+    private List<Checkpointer.Checkpoint> checkpoints;
     private Timeline playbackTimeline;
 
     public MetricsPanel() {
@@ -149,7 +148,7 @@ public class MetricsPanel extends BorderPane {
     }
 
     /** Called while the search is still running: follows the latest checkpoint, slider stays locked. */
-    public void updateLive(List<Checkpoint> latestCheckpoints) {
+    public void updateLive(List<Checkpointer.Checkpoint> latestCheckpoints) {
         // Downsample here too, not just at completion: the raw log is recorded every 100
         // branches and can reach hundreds of thousands of entries mid-run, and re-plotting all
         // of them on every 200ms poll tick is what was making the panel unusably slow.
@@ -163,7 +162,7 @@ public class MetricsPanel extends BorderPane {
     }
 
     /** Called once the search finishes: unlocks the slider and Play button for scrubbable replay. */
-    public void markComplete(List<Checkpoint> finalCheckpoints) {
+    public void markComplete(List<Checkpointer.Checkpoint> finalCheckpoints) {
         checkpoints = downsample(finalCheckpoints);
         statusPill.setText("✓ Complete");
         statusPill.getStyleClass().remove("metrics-status-pill-running");
@@ -187,20 +186,20 @@ public class MetricsPanel extends BorderPane {
      * budget is filled with evenly-spaced points from the full log, so the flat stretches stay
      * represented too.
      */
-    private static List<Checkpoint> downsample(List<Checkpoint> full) {
+    private static List<Checkpointer.Checkpoint> downsample(List<Checkpointer.Checkpoint> full) {
         if (full.size() <= MAX_REPLAY_CHECKPOINTS) {
             return full;
         }
 
-        List<Checkpoint> changePoints = new ArrayList<>();
+        List<Checkpointer.Checkpoint> changePoints = new ArrayList<>();
         int lastMakespan = Integer.MIN_VALUE;
-        for (Checkpoint checkpoint : full) {
+        for (Checkpointer.Checkpoint checkpoint : full) {
             if (checkpoint.bestMakespan() != lastMakespan) {
                 changePoints.add(checkpoint);
                 lastMakespan = checkpoint.bestMakespan();
             }
         }
-        Checkpoint lastEntry = full.get(full.size() - 1);
+        Checkpointer.Checkpoint lastEntry = full.get(full.size() - 1);
         if (changePoints.isEmpty() || !changePoints.get(changePoints.size() - 1).equals(lastEntry)) {
             changePoints.add(lastEntry);
         }
@@ -209,19 +208,19 @@ public class MetricsPanel extends BorderPane {
             return evenlySample(changePoints, MAX_REPLAY_CHECKPOINTS);
         }
 
-        List<Checkpoint> filler = evenlySample(full, MAX_REPLAY_CHECKPOINTS - changePoints.size());
-        List<Checkpoint> merged = new ArrayList<>(changePoints);
-        for (Checkpoint checkpoint : filler) {
+        List<Checkpointer.Checkpoint> filler = evenlySample(full, MAX_REPLAY_CHECKPOINTS - changePoints.size());
+        List<Checkpointer.Checkpoint> merged = new ArrayList<>(changePoints);
+        for (Checkpointer.Checkpoint checkpoint : filler) {
             if (!merged.contains(checkpoint)) {
                 merged.add(checkpoint);
             }
         }
-        merged.sort(Comparator.comparingLong(Checkpoint::branchesExplored));
+        merged.sort(Comparator.comparingLong(Checkpointer.Checkpoint::branchesExplored));
         return merged;
     }
 
     /** Evenly picks up to `count` points from `source`, always keeping the last. */
-    private static List<Checkpoint> evenlySample(List<Checkpoint> source, int count) {
+    private static List<Checkpointer.Checkpoint> evenlySample(List<Checkpointer.Checkpoint> source, int count) {
         if (count <= 0) {
             return List.of();
         }
@@ -232,7 +231,7 @@ public class MetricsPanel extends BorderPane {
             return List.of(source.get(source.size() - 1));
         }
 
-        List<Checkpoint> sampled = new ArrayList<>(count);
+        List<Checkpointer.Checkpoint> sampled = new ArrayList<>(count);
         double step = (source.size() - 1) / (double) (count - 1);
         for (int i = 0; i < count; i++) {
             int index = Math.min((int) Math.round(i * step), source.size() - 1);
@@ -271,7 +270,7 @@ public class MetricsPanel extends BorderPane {
             return;
         }
         index = Math.max(0, Math.min(index, checkpoints.size() - 1));
-        Checkpoint checkpoint = checkpoints.get(index);
+        Checkpointer.Checkpoint checkpoint = checkpoints.get(index);
 
         checkpointLabel.setText(String.format("Checkpoint %d of %d", index + 1, checkpoints.size()));
         branchesValue.setText(String.format("%,d", checkpoint.branchesExplored()));
@@ -292,10 +291,10 @@ public class MetricsPanel extends BorderPane {
 
     /** Shows only checkpoints up to (and including) the one currently selected. */
     private void updateConvergenceChart(int uptoIndexInclusive) {
-        List<Checkpoint> visible = checkpoints.subList(0, uptoIndexInclusive + 1);
+        List<Checkpointer.Checkpoint> visible = checkpoints.subList(0, uptoIndexInclusive + 1);
 
-        List<Checkpoint> withMakespan = new ArrayList<>();
-        for (Checkpoint checkpoint : visible) {
+        List<Checkpointer.Checkpoint> withMakespan = new ArrayList<>();
+        for (Checkpointer.Checkpoint checkpoint : visible) {
             if (checkpoint.bestMakespan() != Integer.MAX_VALUE) {
                 withMakespan.add(checkpoint);
             }
@@ -309,19 +308,23 @@ public class MetricsPanel extends BorderPane {
     }
 
     /** The normal case: makespan improving over time. */
-    private void plotMakespanConvergence(List<Checkpoint> points) {
+    private void plotMakespanConvergence(List<Checkpointer.Checkpoint> points) {
         convergenceChart.setTitle("Convergence");
         convergenceYAxis.setLabel("Makespan");
-        convergenceSeries.getData().clear();
 
+        List<XYChart.Data<Number, Number>> data = new ArrayList<>(points.size());
         int maxMakespan = Integer.MIN_VALUE;
         int minMakespan = Integer.MAX_VALUE;
-        for (Checkpoint checkpoint : points) {
-            convergenceSeries.getData().add(
-                    new XYChart.Data<>(checkpoint.elapsedNanos() / 1_000_000_000.0, checkpoint.bestMakespan()));
+        for (Checkpointer.Checkpoint checkpoint : points) {
+            data.add(new XYChart.Data<>(checkpoint.elapsedNanos() / 1_000_000_000.0, checkpoint.bestMakespan()));
             maxMakespan = Math.max(maxMakespan, checkpoint.bestMakespan());
             minMakespan = Math.min(minMakespan, checkpoint.bestMakespan());
         }
+        // setAll() replaces the series in one atomic list change instead of clear() + N adds,
+        // so it can't land half-applied across an axis-rescale layout pass and leave an orphaned
+        // symbol node behind.
+        convergenceSeries.getData().setAll(data);
+
         convergenceYAxis.setLowerBound(Math.max(0, minMakespan - 6));
         convergenceYAxis.setUpperBound(maxMakespan + 6);
         convergenceYAxis.setTickUnit(
@@ -330,13 +333,9 @@ public class MetricsPanel extends BorderPane {
     }
 
     /**
-     * Fallback for a search with too few (or zero) makespan improvements to show a convergence
-     * trend - e.g. a 1-processor search has no branching, so it only ever finds one complete
-     * schedule, all at once. Plots branches explored over time instead, which always has a real
-     * multi-point story to tell (the two-tier checkpoint interval in SearchContext guarantees a
-     * small search still gets plenty of checkpoints to plot here).
+     * Plots the search progress over time, showing the number of branches explored.
      */
-    private void plotSearchProgress(List<Checkpoint> points) {
+    private void plotSearchProgress(List<Checkpointer.Checkpoint> points) {
         if (points.size() < 2) {
             setCenter(noConvergenceDataLabel);
             return;
@@ -344,17 +343,19 @@ public class MetricsPanel extends BorderPane {
 
         convergenceChart.setTitle("Search Progress");
         convergenceYAxis.setLabel("Branches explored");
-        convergenceSeries.getData().clear();
 
+        List<XYChart.Data<Number, Number>> data = new ArrayList<>(points.size());
         long maxBranches = 0;
-        for (Checkpoint checkpoint : points) {
-            convergenceSeries.getData().add(
-                    new XYChart.Data<>(checkpoint.elapsedNanos() / 1_000_000_000.0, checkpoint.branchesExplored()));
+        for (Checkpointer.Checkpoint checkpoint : points) {
+            data.add(new XYChart.Data<>(checkpoint.elapsedNanos() / 1_000_000_000.0, checkpoint.branchesExplored()));
             maxBranches = Math.max(maxBranches, checkpoint.branchesExplored());
         }
+        convergenceSeries.getData().setAll(data);
+
         convergenceYAxis.setLowerBound(0);
         convergenceYAxis.setUpperBound(maxBranches + Math.max(1, maxBranches / 10));
         convergenceYAxis.setTickUnit(Math.max(1, convergenceYAxis.getUpperBound() / 5.0));
         setCenter(convergenceChart);
     }
+
 }

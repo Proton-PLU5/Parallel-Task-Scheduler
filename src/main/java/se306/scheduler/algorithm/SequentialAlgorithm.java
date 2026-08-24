@@ -26,7 +26,7 @@ public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
     public Schedule solve() {
         ctx.runGreedyAlgorithm();
         search();
-        ctx.recordFinalCheckpoint();
+        ctx.getCheckpointer().recordFinalCheckpoint(ctx.getBest());
         return ctx.getBestSchedule();
     }
 

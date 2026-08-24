@@ -180,15 +180,15 @@ public abstract class AbstractSearch extends RecursiveAction {
             // lands on this exact branch sees the makespan this call just found, not the
             // pre-update value.
             ctx.compareAndSetBestSchedule(makespan, startTime, processorOf);
-            ctx.incrementBranchesExplored();
+            ctx.getCheckpointer().incrementBranchesExplored();
             return;
         }
 
-        ctx.incrementBranchesExplored();
+        ctx.getCheckpointer().incrementBranchesExplored();
 
         if (lowerBound() >= ctx.getBest()) {
             // Lower bound pruning
-            ctx.incrementBranchesPruned();
+            ctx.getCheckpointer().incrementBranchesPruned();
             return;
         }
 
