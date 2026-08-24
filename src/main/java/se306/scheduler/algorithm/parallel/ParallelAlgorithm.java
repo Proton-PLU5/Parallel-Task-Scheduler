@@ -28,6 +28,7 @@ public class ParallelAlgorithm implements Algorithm {
         ParallelSearch root = new ParallelSearch(context);
         pool.invoke(root);
         pool.shutdown();
+        context.recordFinalCheckpoint();
         return context.getBestSchedule();
     }
 

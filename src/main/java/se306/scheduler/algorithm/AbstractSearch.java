@@ -167,12 +167,17 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected void search() {
         TaskGraph graph = ctx.getGraph();
-        ctx.incrementBranchesExplored();
 
         if (scheduledCount == graph.taskCount()) {
+            // Update best (and record a checkpoint) before returning, so a checkpoint that
+            // lands on this exact branch sees the makespan this call just found, not the
+            // pre-update value.
             ctx.compareAndSetBestSchedule(makespan, startTime, processorOf);
+            ctx.incrementBranchesExplored();
             return;
         }
+
+        ctx.incrementBranchesExplored();
 
         if (lowerBound() >= ctx.getBest()) {
             // Lower bound pruning

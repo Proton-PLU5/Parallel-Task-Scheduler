@@ -4,6 +4,9 @@ import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
+import com.sun.management.OperatingSystemMXBean;
+
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,8 +17,21 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class SearchContext {
 
-    /** One point on the convergence graph: a new best makespan found `elapsedMillis` into the search. */
-    public record Improvement(long elapsedMillis, int makespan) {}
+    /**
+     * How often (in branches explored) a checkpoint is recorded. Fixed and never adjusted mid-run:
+     * a uniform interval throughout is what lets the log be evenly downsampled for replay later
+     * without bias toward any part of the search.
+     */
+    private static final long CHECKPOINT_INTERVAL = 100;
+
+    /** A snapshot of search progress, taken every CHECKPOINT_INTERVAL branches plus once at completion. */
+    public record Checkpoint(
+            long branchesExplored,
+            long branchesPruned,
+            int bestMakespan,
+            long elapsedMillis,
+            long usedMemoryBytes,
+            double cpuLoadPercent) {}
 
     private final TaskGraph graph;
     private final int numProcessors;
@@ -23,9 +39,13 @@ public class SearchContext {
     private final SearchListener listener;
     private final long searchStartTime = System.currentTimeMillis();
 
+    private final Runtime runtime = Runtime.getRuntime();
+    private final OperatingSystemMXBean osBean =
+            (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+
     private volatile int best = Integer.MAX_VALUE;
     private volatile Schedule bestSchedule;
-    private final List<Improvement> improvementHistory = new ArrayList<>();
+    private final List<Checkpoint> checkpoints = new ArrayList<>();
 
     private final AtomicLong branchesExplored = new AtomicLong();
     private final AtomicLong branchesPruned = new AtomicLong();
@@ -95,7 +115,6 @@ public class SearchContext {
         if (makespan < this.best) {
             best = makespan;
             bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
-            improvementHistory.add(new Improvement(System.currentTimeMillis() - searchStartTime, makespan));
 
             // When we have a new best schedule, call the listener to update the GUI
             if (listener != null) {
@@ -110,10 +129,45 @@ public class SearchContext {
     public int getBest() { return best; }
     public Schedule getBestSchedule() { return bestSchedule; }
 
-    public void incrementBranchesExplored() { branchesExplored.incrementAndGet(); }
+    /** @return the new branch count, mainly so callers don't need a second atomic read. */
+    public long incrementBranchesExplored() {
+        long count = branchesExplored.incrementAndGet();
+        if (count % CHECKPOINT_INTERVAL == 0) {
+            recordCheckpoint();
+        }
+        return count;
+    }
+
     public void incrementBranchesPruned() { branchesPruned.incrementAndGet(); }
     public long getBranchesExplored() { return branchesExplored.get(); }
     public long getBranchesPruned() { return branchesPruned.get(); }
 
-    public synchronized List<Improvement> getImprovementHistory() { return List.copyOf(improvementHistory); }
+    private synchronized void recordCheckpoint() {
+        checkpoints.add(buildCheckpoint());
+    }
+
+    /**
+     * Forces one final checkpoint when the search completes, so a run that never reaches
+     * CHECKPOINT_INTERVAL branches (or doesn't land exactly on a multiple) still ends up with
+     * at least one checkpoint to show.
+     */
+    public synchronized void recordFinalCheckpoint() {
+        if (!checkpoints.isEmpty()
+                && checkpoints.get(checkpoints.size() - 1).branchesExplored() == branchesExplored.get()) {
+            return;
+        }
+        checkpoints.add(buildCheckpoint());
+    }
+
+    private Checkpoint buildCheckpoint() {
+        return new Checkpoint(
+                branchesExplored.get(),
+                branchesPruned.get(),
+                best,
+                System.currentTimeMillis() - searchStartTime,
+                runtime.totalMemory() - runtime.freeMemory(),
+                Math.max(0, osBean.getProcessCpuLoad() * 100));
+    }
+
+    public synchronized List<Checkpoint> getCheckpoints() { return List.copyOf(checkpoints); }
 }

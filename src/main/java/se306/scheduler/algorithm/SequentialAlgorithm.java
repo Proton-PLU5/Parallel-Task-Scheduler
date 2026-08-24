@@ -25,6 +25,7 @@ public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
     @Override
     public Schedule solve() {
         search();
+        ctx.recordFinalCheckpoint();
         return ctx.getBestSchedule();
     }
 
