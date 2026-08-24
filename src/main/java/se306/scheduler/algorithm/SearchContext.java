@@ -1,17 +1,9 @@
 package se306.scheduler.algorithm;
 
-import se306.scheduler.algorithm.metrics.Checkpointer;
+import se306.scheduler.algorithm.metrics.SearchMetrics;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
-
-import com.sun.management.OperatingSystemMXBean;
-
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 
 /**
  * The shared current best state. This class contains the shared state between threads, and handles the concurrency
@@ -19,7 +11,7 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class SearchContext {
 
-    private final Checkpointer checkpointer;
+    private final SearchMetrics metrics;
     private final TaskGraph graph;
 
     private final int numProcessors;
@@ -43,7 +35,7 @@ public class SearchContext {
         this.bottomLevel = computeBottomLevel(graph);
         this.totalWork = computeTotalWork(graph);
         this.listener = listener;
-        this.checkpointer = new Checkpointer();
+        this.metrics = new SearchMetrics();
     }
 
     /**
@@ -145,7 +137,6 @@ public class SearchContext {
             }
             best = makespan;
             bestSchedule = improved;
-            this.checkpointer.recordCheckpoint(makespan);
         }
 
         // Notified outside the lock: no worker should be able to block behind a listener callback.
@@ -173,5 +164,5 @@ public class SearchContext {
     public int getBottomLevel(int task) { return bottomLevel[task]; }
     public int getBest() { return best; }
     public Schedule getBestSchedule() { return bestSchedule; }
-    public Checkpointer getCheckpointer() { return checkpointer; }
+    public SearchMetrics getMetrics() { return metrics; }
 }

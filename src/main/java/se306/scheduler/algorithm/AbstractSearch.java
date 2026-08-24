@@ -19,6 +19,14 @@ public abstract class AbstractSearch extends RecursiveAction {
 
     protected record LogEntry(int task, int processor, int previousFreeAt, int previousMakespan, int previousBound) {}
 
+    /**
+     * How many branches a search accumulates locally before pushing them to the shared counters.
+     * Every node in the tree counts, so touching a shared LongAdder per node was by far the most
+     * expensive thing the metrics did; batching drops that traffic by three orders of magnitude
+     * while leaving the once-a-second GUI reading accurate to within one batch per live thread.
+     */
+    private static final int COUNTER_FLUSH_INTERVAL = 1024;
+
     // Shared state context
     protected final SearchContext ctx;
 
@@ -35,6 +43,12 @@ public abstract class AbstractSearch extends RecursiveAction {
     protected int currentBound;
 
     protected Deque<LogEntry> log;
+
+    // Thread-confined branch counters, flushed to the shared metrics in batches. Deliberately not
+    // copied by the child constructor: a forked child starts its own batch from zero, and the
+    // parent keeps ownership of everything it has counted so far.
+    private long localExplored;
+    private long localPruned;
 
     /**
      * The primary constructor
@@ -176,19 +190,18 @@ public abstract class AbstractSearch extends RecursiveAction {
         TaskGraph graph = ctx.getGraph();
 
         if (scheduledCount == graph.taskCount()) {
-            // Update best (and record a checkpoint) before returning, so a checkpoint that
-            // lands on this exact branch sees the makespan this call just found, not the
-            // pre-update value.
+            // A leaf: this is the only place a new best can be found, and so the only place the
+            // GUI is told about one. Everything else the panel shows is sampled on a timer.
             ctx.compareAndSetBestSchedule(makespan, startTime, processorOf);
-            ctx.getCheckpointer().incrementBranchesExplored();
+            countExplored();
             return;
         }
 
-        ctx.getCheckpointer().incrementBranchesExplored();
+        countExplored();
 
         if (lowerBound() >= ctx.getBest()) {
             // Lower bound pruning
-            ctx.getCheckpointer().incrementBranchesPruned();
+            localPruned++;
             return;
         }
 
@@ -196,6 +209,29 @@ public abstract class AbstractSearch extends RecursiveAction {
             if (processorOf[task] == -1 && indegreeRemaining[task] == 0) {
                 exploreProcessors(task);
             }
+        }
+    }
+
+    /** Counts one explored branch locally, flushing the batch to the shared counters when full. */
+    private void countExplored() {
+        if (++localExplored >= COUNTER_FLUSH_INTERVAL) {
+            flushCounters();
+        }
+    }
+
+    /**
+     * Pushes this search's locally accumulated branch counts to the shared metrics. Called
+     * automatically when a batch fills, and once more when the search finishes so the trailing
+     * partial batch is never lost.
+     */
+    public final void flushCounters() {
+        if (localExplored != 0) {
+            ctx.getMetrics().addBranchesExplored(localExplored);
+            localExplored = 0;
+        }
+        if (localPruned != 0) {
+            ctx.getMetrics().addBranchesPruned(localPruned);
+            localPruned = 0;
         }
     }
 
@@ -241,6 +277,10 @@ public abstract class AbstractSearch extends RecursiveAction {
 
     @Override
     protected void compute() {
-        search();
+        try {
+            search();
+        } finally {
+            flushCounters();
+        }
     }
 }
