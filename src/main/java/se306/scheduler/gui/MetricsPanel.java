@@ -71,11 +71,15 @@ public class MetricsPanel extends BorderPane {
     private static final int MAX_PROGRESS_POINTS = 400;
 
     /**
-     * The time axis runs to this multiple of the latest time rather than stopping dead at it, so
-     * the leading edge of the line always has room ahead of it instead of being pinned against
-     * the right edge of the plot.
+     * How far past the latest point the time axis is extended, each time it has to be extended at
+     * all. The axis holds still until the line actually reaches its right edge and only then
+     * jumps out to this multiple, so the plot grows in occasional steps rather than creeping
+     * outwards on every sample and dragging the whole line leftwards with it.
      */
     private static final double TIME_AXIS_HEADROOM = 1.2;
+
+    /** Smallest span the time axis will ever show, so a search that ends instantly is still readable. */
+    private static final double MIN_TIME_AXIS_SPAN = 1.0;
 
     private static final int[] PLAYBACK_SPEEDS = {1, 4, 16};
 
@@ -107,6 +111,12 @@ public class MetricsPanel extends BorderPane {
 
     /** Which of the two chart modes is on screen, so the hover marker knows what its y means. */
     private boolean showingProgress;
+
+    /**
+     * The current right-hand edge of the time axis. Only ever grows, which is what keeps the axis
+     * still between jumps and stops it collapsing back inwards while a finished run is scrubbed.
+     */
+    private double timeAxisUpper;
 
     private final Label statusPill = new Label("● Running");
     private final Label timelineLabel = new Label("Live · 0.0 s");
@@ -249,7 +259,7 @@ public class MetricsPanel extends BorderPane {
     /** Clears any previous run's history so the panel can be reused for a fresh search. */
     public void beginRun() {
         stopPlayback();
-        clearHover();
+        hoverIndex = -1;
         frames.clear();
         improvements.clear();
         frameIntervalSeconds = SAMPLE_INTERVAL.toSeconds();
@@ -272,6 +282,9 @@ public class MetricsPanel extends BorderPane {
         stepSeries.getData().clear();
         markerSeries.getData().clear();
         currentMarkerSeries.getData().clear();
+        crosshairSeries.getData().clear();
+        hoverDotSeries.getData().clear();
+        timeAxisUpper = 0;
         setCenter(noConvergenceDataLabel);
     }
 
@@ -473,7 +486,7 @@ public class MetricsPanel extends BorderPane {
                 Math.max(1, (convergenceYAxis.getUpperBound() - convergenceYAxis.getLowerBound()) / 5.0));
         setTimeAxis(upto);
         setCenter(convergenceChart);
-        redrawHoverMarker();
+        redrawMarkers();
     }
 
     /**
@@ -521,18 +534,26 @@ public class MetricsPanel extends BorderPane {
         convergenceYAxis.setTickUnit(Math.max(1, convergenceYAxis.getUpperBound() / 5.0));
         setTimeAxis(upto);
         setCenter(convergenceChart);
-        redrawHoverMarker();
+        redrawMarkers();
     }
 
     /**
-     * Runs the time axis out past the latest point by {@link #TIME_AXIS_HEADROOM}, so the line
-     * grows into empty space rather than the axis ending exactly where the data does.
+     * Extends the time axis, but only once the line has actually reached the end of it - at which
+     * point it jumps out to {@link #TIME_AXIS_HEADROOM} times the current time and holds there
+     * again. Between jumps the axis is completely still, so the plotted line stays put instead of
+     * sliding left on every sample.
+     *
+     * <p>The bound never shrinks, which is also what makes replay stable: scrubbing back to 3 s of
+     * a 90 s run keeps the full 90 s of axis, so the staircase stays where it was drawn rather
+     * than stretching out again as the slider moves.
      */
     private void setTimeAxis(double upto) {
-        double upper = Math.max(frameIntervalSeconds, upto * TIME_AXIS_HEADROOM);
+        if (upto > timeAxisUpper) {
+            timeAxisUpper = Math.max(MIN_TIME_AXIS_SPAN, upto * TIME_AXIS_HEADROOM);
+        }
         convergenceXAxis.setLowerBound(0);
-        convergenceXAxis.setUpperBound(upper);
-        convergenceXAxis.setTickUnit(upper / 5.0);
+        convergenceXAxis.setUpperBound(timeAxisUpper);
+        convergenceXAxis.setTickUnit(timeAxisUpper / 5.0);
     }
 
     /**
@@ -566,24 +587,42 @@ public class MetricsPanel extends BorderPane {
         updateHoverMarker(frame);
     }
 
-    /** Drops the hover and hands the readout back to whichever frame the slider is on. */
+    /**
+     * Drops the hover and hands the readout back to whichever frame the slider is on. The
+     * crosshair does not vanish - it snaps back to the leading edge, where it then tracks the
+     * live search, or the replay position while the slider is being moved.
+     */
     private void clearHover() {
         if (hoverIndex < 0) {
             return;
         }
         hoverIndex = -1;
-        crosshairSeries.getData().clear();
         hoverDotSeries.getData().clear();
-        if (!frames.isEmpty()) {
-            showStats(frames.get(Math.min(displayedIndex, frames.size() - 1)), false);
+        if (frames.isEmpty()) {
+            crosshairSeries.getData().clear();
+            return;
+        }
+        showStats(frames.get(Math.min(displayedIndex, frames.size() - 1)), false);
+        moveCrosshairTo(currentUpto());
+    }
+
+    /**
+     * Re-places the markers after a chart rebuild has moved the axes underneath them: onto the
+     * hovered frame if there is one, and back onto the leading edge if there is not.
+     */
+    private void redrawMarkers() {
+        if (hoverIndex >= 0 && hoverIndex < frames.size()) {
+            updateHoverMarker(frames.get(hoverIndex));
+        } else if (!frames.isEmpty()) {
+            moveCrosshairTo(currentUpto());
         }
     }
 
-    /** Re-places the hover marker after a chart rebuild has moved the axes underneath it. */
-    private void redrawHoverMarker() {
-        if (hoverIndex >= 0 && hoverIndex < frames.size()) {
-            updateHoverMarker(frames.get(hoverIndex));
-        }
+    /** Stands the crosshair up at one time, spanning the full height of the plot. */
+    private void moveCrosshairTo(double timeSeconds) {
+        crosshairSeries.getData().setAll(List.of(
+                new XYChart.Data<>(timeSeconds, convergenceYAxis.getLowerBound()),
+                new XYChart.Data<>(timeSeconds, convergenceYAxis.getUpperBound())));
     }
 
     /**
@@ -593,9 +632,7 @@ public class MetricsPanel extends BorderPane {
      */
     private void updateHoverMarker(Frame frame) {
         double time = frame.timeSeconds();
-        crosshairSeries.getData().setAll(List.of(
-                new XYChart.Data<>(time, convergenceYAxis.getLowerBound()),
-                new XYChart.Data<>(time, convergenceYAxis.getUpperBound())));
+        moveCrosshairTo(time);
 
         if (!showingProgress && frame.bestMakespan() == Integer.MAX_VALUE) {
             // Nothing had been found yet at this moment, so there is no line for the dot to sit on.
