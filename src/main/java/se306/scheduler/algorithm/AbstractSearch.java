@@ -22,9 +22,9 @@ public abstract class AbstractSearch extends RecursiveAction {
     // Shared state context
     protected final SearchContext ctx;
 
-    protected int[] processorOf;
-    protected int[] startTime;
-    protected int[] processorFreeAt;
+    public int[] processorOf;
+    public int[] startTime;
+    public int[] processorFreeAt;
     protected int[] indegreeRemaining;
 
     protected int scheduledCount;
@@ -77,7 +77,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         this.log = new ArrayDeque<>(parent.log);;
     }
 
-    protected int lowerBound() {
+    public int lowerBound() {
         return Math.max(makespan, currentBound);
     }
 
@@ -88,7 +88,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      *
      * @return an integer representing the task.
      */
-    protected int nextReadyTask() {
+    public int nextReadyTask() {
         for (int task = 0; task < ctx.getGraph().taskCount(); task++) {
             if (processorOf[task] == -1 && indegreeRemaining[task] == 0) return task;
         }
@@ -103,7 +103,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      * @param task The task to be placed
      * @param processor The processor the task should be scheduled onto.
      */
-    protected void place(int task, int processor) {
+    public void place(int task, int processor) {
         int ready = processorFreeAt[processor];
         TaskGraph graph = ctx.getGraph();
 
@@ -141,7 +141,7 @@ public abstract class AbstractSearch extends RecursiveAction {
      * Undoes the last scheduling operation by popping the log entry and restoring the previous state.
      * This is used for backtracking in the DFS search.
      */
-    protected void undo() {
+    public void undo() {
         LogEntry entry = log.pop();
         startTime[entry.task()] = -1;
         processorOf[entry.task()] = -1;
