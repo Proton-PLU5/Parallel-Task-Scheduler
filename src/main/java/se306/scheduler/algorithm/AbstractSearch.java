@@ -26,6 +26,7 @@ public abstract class AbstractSearch extends RecursiveAction {
     public int[] startTime;
     public int[] processorFreeAt;
     protected int[] indegreeRemaining;
+    protected int[] taskCountOn;
 
     protected int scheduledCount;
     protected int makespan;
@@ -45,6 +46,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         this.startTime = new int[n];
         this.processorFreeAt = new int[ctx.getNumProcessors()];
         this.indegreeRemaining = new int[n];
+        this.taskCountOn = new int[ctx.getNumProcessors()];
 
         // Populate initial values
         Arrays.fill(processorOf, -1);
@@ -67,6 +69,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         this.startTime = parent.startTime.clone();
         this.processorFreeAt = parent.processorFreeAt.clone();
         this.indegreeRemaining = parent.indegreeRemaining.clone();
+        this.taskCountOn = parent.taskCountOn.clone();
 
         this.scheduledCount = parent.scheduledCount;
         this.makespan = parent.makespan;
@@ -74,7 +77,7 @@ public abstract class AbstractSearch extends RecursiveAction {
 
         // Create a fresh log, this clone is a new branch, so it never needs to undo
         // state it inherited from its parent.
-        this.log = new ArrayDeque<>(parent.log);;
+        this.log = new ArrayDeque<>();
     }
 
     public int lowerBound() {
@@ -123,6 +126,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         processorOf[task] = processor;
         startTime[task] = ready;
         processorFreeAt[processor] = ready + graph.weight(task);
+        taskCountOn[processor]++;
         makespan = Math.max(makespan, processorFreeAt[processor]);
 
         // Update the current bound
@@ -147,6 +151,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         processorOf[entry.task()] = -1;
         processorFreeAt[entry.processor()] = entry.previousFreeAt();
         makespan = entry.previousMakespan();
+        taskCountOn[entry.processor()]--;
 
         // Restore the previous current bound
         currentBound = entry.previousBound();
@@ -178,10 +183,11 @@ public abstract class AbstractSearch extends RecursiveAction {
             return;
         }
 
-        int task = nextReadyTask();
-
-        if (task == -1) return;
-        exploreProcessors(task);
+        for (int task = 0; task < graph.taskCount(); task++) {
+            if (processorOf[task] == -1 && indegreeRemaining[task] == 0) {
+                exploreProcessors(task);
+            }
+        }
     }
 
     /**
@@ -193,9 +199,13 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected final void exploreSequentially(int task, int fromProcessor, int toProcessor) {
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
+            boolean isEmpty = taskCountOn[processor] == 0;
+
             place(task, processor);
             search();
             undo();
+
+            if (isEmpty) break; // All remaining processors would produce the same schedule so break.
         }
     }
 
