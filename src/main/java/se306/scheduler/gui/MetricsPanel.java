@@ -92,7 +92,7 @@ public class MetricsPanel extends BorderPane {
         VBox leftColumn = new VBox(28, tileGrid, meterSection);
         leftColumn.setPrefWidth(300);
 
-        convergenceXAxis.setLabel("Branches explored (thousands)");
+        convergenceXAxis.setLabel("Time (s)");
         convergenceYAxis.setLabel("Makespan");
         convergenceYAxis.setAutoRanging(false);
         convergenceChart.setTitle("Convergence");
@@ -252,7 +252,7 @@ public class MetricsPanel extends BorderPane {
                 continue;
             }
             convergenceSeries.getData().add(
-                    new XYChart.Data<>(checkpoint.branchesExplored() / 1000.0, checkpoint.bestMakespan()));
+                    new XYChart.Data<>(checkpoint.elapsedMillis() / 1000.0, checkpoint.bestMakespan()));
             maxMakespan = Math.max(maxMakespan, checkpoint.bestMakespan());
             minMakespan = Math.min(minMakespan, checkpoint.bestMakespan());
         }
