@@ -32,6 +32,11 @@ public class MainWindowController {
         ganttChart = new GanttChartPanel(0, 0);
         searchTree = new SearchTreePanel();
 
+        // Keep visualization panel sizes from participating in parent layout.
+        // This prevents very large graphs from expanding the window/viewport size.
+        ganttChart.setManaged(false);
+        searchTree.setManaged(false);
+
         configureViewportClip();
         configureDefaultPanel();
         configureAutoFitListeners();
