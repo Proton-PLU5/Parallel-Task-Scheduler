@@ -1,14 +1,21 @@
 package se306.scheduler.gui;
 
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.ZoomEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 
 public class MainWindowController {
+
+    private static final double MIN_SCALE = 1.0;
+    private static final double MAX_SCALE = 4.0;
+    private static final double SCROLL_ZOOM_SENSITIVITY = 0.0015;
 
     @FXML private StackPane chartContainer;
 
@@ -58,11 +65,134 @@ public class MainWindowController {
 
                 lastDragPosition[0] = event.getSceneX();
                 lastDragPosition[1] = event.getSceneY();
+                clampPan();
             }
         });
 
-        // TODO: Add zooming
+        // Scroll to zoom
+        chartContainer.addEventFilter(ScrollEvent.SCROLL, event -> {
+            double zoomFactor = Math.exp(event.getDeltaY() * SCROLL_ZOOM_SENSITIVITY);
+            applyZoom(zoomFactor, event.getSceneX(), event.getSceneY());
+            event.consume();
+        });
+
+        // Pinch to zoom
+        chartContainer.addEventFilter(ZoomEvent.ZOOM, event -> {
+            applyZoom(event.getZoomFactor(), event.getSceneX(), event.getSceneY());
+            event.consume();
+        });
     }
+
+    /**
+     * Scales {@code currentPanel} by {@code zoomFactor}, keeping the point under the cursor
+     * ({@code sceneX}, {@code sceneY}) visually fixed, and clamps the result between
+     * {@link #MIN_SCALE} and {@link #MAX_SCALE}.
+     */
+    private void applyZoom(double zoomFactor, double sceneX, double sceneY) {
+        double oldScale = currentPanel.getScaleX();
+
+        double newScale = Math.max(
+            MIN_SCALE,
+            Math.min(MAX_SCALE, oldScale * zoomFactor)
+        );
+
+        if (newScale == oldScale) {
+            return;
+        }
+
+        // Find exactly where the mouse is relative to the panel
+        javafx.geometry.Point2D mouseInLocal =
+            currentPanel.sceneToLocal(sceneX, sceneY);
+
+        // Apply the scale
+        currentPanel.setScaleX(newScale);
+        currentPanel.setScaleY(newScale);
+
+        // Find where that same local point is now appearing on screen
+        javafx.geometry.Point2D mouseAfterScale =
+            currentPanel.localToScene(mouseInLocal);
+
+        // Move the panel so the point returns to the mouse position
+        currentPanel.setTranslateX(
+            currentPanel.getTranslateX()
+                + (sceneX - mouseAfterScale.getX())
+        );
+
+        currentPanel.setTranslateY(
+            currentPanel.getTranslateY()
+                + (sceneY - mouseAfterScale.getY())
+        );
+
+        clampPan();
+    }
+
+    private void clampPan() {
+        double containerWidth = chartContainer.getWidth();
+        double containerHeight = chartContainer.getHeight();
+
+        Bounds bounds = currentPanel.getBoundsInParent();
+
+        // Horizontal
+        if (bounds.getWidth() > containerWidth) {
+
+            // Left edge cannot move past the left side
+            if (bounds.getMinX() > 0) {
+                currentPanel.setTranslateX(
+                    currentPanel.getTranslateX() - bounds.getMinX()
+                );
+            }
+
+            // Right edge cannot move before the right side
+            else if (bounds.getMaxX() < containerWidth) {
+                currentPanel.setTranslateX(
+                    currentPanel.getTranslateX()
+                        + (containerWidth - bounds.getMaxX())
+                );
+            }
+
+        } else {
+            // Content is smaller than viewport:
+            // keep it at the top-left
+            currentPanel.setTranslateX(
+                currentPanel.getTranslateX() - bounds.getMinX()
+            );
+        }
+
+        // Recalculate because X/Y transforms are independent,
+        // but this also gives us the current transformed bounds.
+        bounds = currentPanel.getBoundsInParent();
+
+        // Vertical
+        if (bounds.getHeight() > containerHeight) {
+
+            // Top edge cannot move below the top
+            if (bounds.getMinY() > 0) {
+                currentPanel.setTranslateY(
+                    currentPanel.getTranslateY() - bounds.getMinY()
+                );
+            }
+
+            // Bottom edge cannot move above the bottom
+            else if (bounds.getMaxY() < containerHeight) {
+                currentPanel.setTranslateY(
+                    currentPanel.getTranslateY()
+                        + (containerHeight - bounds.getMaxY())
+                );
+            }
+
+        } else {
+            // Content is smaller than viewport:
+            // keep it at the top
+            currentPanel.setTranslateY(
+                currentPanel.getTranslateY() - bounds.getMinY()
+            );
+        }
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
 
     @FXML
     private void showGanttChart() {

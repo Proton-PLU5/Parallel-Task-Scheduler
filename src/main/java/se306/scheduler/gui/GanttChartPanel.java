@@ -22,12 +22,12 @@ public class GanttChartPanel extends StackPane {
 
     public GanttChartPanel(double width, double height) {
         canvas = new Canvas(width, height);
-
         canvas.setManaged(false);
-
         getChildren().add(canvas);
-
         StackPane.setAlignment(canvas, Pos.TOP_LEFT);
+
+        prefWidthProperty().bind(canvas.widthProperty());
+        prefHeightProperty().bind(canvas.heightProperty());
     }
 
     public void renderSchedule(TaskGraph graph, Schedule schedule) {
@@ -35,13 +35,13 @@ public class GanttChartPanel extends StackPane {
         int maxTime = schedule.makespan();
 
         double requiredWidth =
-            LEFT_MARGIN + maxTime * PIXELS_PER_UNIT + 40;
+            LEFT_MARGIN + maxTime * PIXELS_PER_UNIT + 20;
 
         double requiredHeight =
-            TOP_MARGIN + numProcessors * COLUMN_WIDTH + 20;
+            TOP_MARGIN + numProcessors * COLUMN_WIDTH;
 
-        canvas.setWidth(Math.max(requiredWidth, canvas.getWidth()));
-        canvas.setHeight(Math.max(requiredHeight, canvas.getHeight()));
+        canvas.setWidth(requiredWidth);
+        canvas.setHeight(requiredHeight);
 
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
