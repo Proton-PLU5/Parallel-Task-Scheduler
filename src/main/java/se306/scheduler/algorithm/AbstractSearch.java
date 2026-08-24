@@ -178,10 +178,11 @@ public abstract class AbstractSearch extends RecursiveAction {
             return;
         }
 
-        int task = nextReadyTask();
-
-        if (task == -1) return;
-        exploreProcessors(task);
+        for (int task = 0; task < graph.taskCount(); task++) {
+            if (processorOf[task] == -1 && indegreeRemaining[task] == 0) {
+                exploreProcessors(task);
+            }
+        }
     }
 
     /**
