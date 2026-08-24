@@ -23,7 +23,6 @@ public class GanttChartPanel extends StackPane {
 
     public GanttChartPanel(double width, double height) {
         canvas = new Canvas(width, height);
-        canvas.setManaged(false);
         getChildren().add(canvas);
         StackPane.setAlignment(canvas, Pos.CENTER);
 
