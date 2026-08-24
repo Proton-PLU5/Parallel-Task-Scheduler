@@ -10,6 +10,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * The shared current best state. This class contains the shared state between threads, and handles the concurrency
@@ -48,6 +49,7 @@ public class SearchContext {
     private final TaskGraph graph;
     private final int numProcessors;
     private final int[] bottomLevel;
+    private final int totalWork;
     private final SearchListener listener;
     private final long searchStartTime = System.nanoTime();
 
@@ -63,13 +65,7 @@ public class SearchContext {
     private final AtomicLong branchesPruned = new AtomicLong();
 
     public SearchContext(TaskGraph graph, int numProcessors) {
-        if (numProcessors < 1) {
-            throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
-        }
-        this.graph = graph;
-        this.numProcessors = numProcessors;
-        this.bottomLevel = computeBottomLevel(graph);
-        this.listener = null;
+        this(graph, numProcessors, null);
     }
 
     public SearchContext(TaskGraph graph, int numProcessors, SearchListener listener) {
@@ -79,7 +75,23 @@ public class SearchContext {
         this.graph = graph;
         this.numProcessors = numProcessors;
         this.bottomLevel = computeBottomLevel(graph);
+        this.totalWork = computeTotalWork(graph);
         this.listener = listener;
+    }
+
+    /**
+     * Sums the weight of every task in the graph, used by {@link #getLoadBound()}.
+     *
+     * @param graph The task graph
+     * @return The total weight of all tasks
+     */
+    private int computeTotalWork(TaskGraph graph) {
+        int n = graph.taskCount();
+        int sum = 0;
+        for (int i = 0; i < n; i++) {
+            sum += graph.weight(i);
+        }
+        return sum;
     }
 
     /**
@@ -113,6 +125,28 @@ public class SearchContext {
     }
 
     /**
+     * A static lower bound on the makespan: every task's weight must be assigned to exactly one
+     * processor, so the total work across all processors is fixed at totalWork regardless of how
+     * the schedule turns out. No processor can do more than M work by time M, so summed over all
+     * processors that's numProcessors * M >= totalWork, giving M >= ceil(totalWork / numProcessors).
+     * This holds for every partial schedule (it doesn't depend on search state at all), so it's
+     * cheap to fold into every lowerBound() call alongside the critical-path bound.
+     *
+     * @return the load-balance lower bound on the makespan
+     */
+    public int getLoadBound() {
+        return (totalWork + numProcessors - 1) / numProcessors;
+    }
+
+    public void runGreedyAlgorithm() {
+        TaskGraph graph = getGraph();
+        Algorithm greedyAlogorithm = new ListScheduler(graph, getNumProcessors());
+
+        Schedule greedySchedule = greedyAlogorithm.solve();
+        compareAndSetBestSchedule(greedySchedule);
+    }
+
+    /**
      * Compare the makeSpan with the current best, and if it is smaller than the current best,
      * Update the best schedule to use the new startTimes and processorOfs.
      *
@@ -120,18 +154,49 @@ public class SearchContext {
      * @param startTime The startTime of the new schedule
      * @param processorOf the processorOf of the new schedule
      */
-    public synchronized void compareAndSetBestSchedule(
+    public void compareAndSetBestSchedule(
             int makespan,
             int[] startTime,
             int[] processorOf) {
-        if (makespan < this.best) {
-            best = makespan;
-            bestSchedule = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
 
-            // When we have a new best schedule, call the listener to update the GUI
-            if (listener != null) {
-                listener.onNewBestSchedule(graph, bestSchedule);
+        // Fast, lock-free bail-out: `best` is volatile, so this lets the overwhelming majority
+        // of calls - schedules that don't improve on the best found so far - skip both the
+        // allocation below and the synchronized block entirely.
+        if (makespan >= this.best) {
+            return;
+        }
+
+        // Clone/construct outside the lock. These arrays belong to the calling thread alone -
+        // each search branch owns its own startTime/processorOf - so nothing else can mutate
+        // them concurrently, and there's no reason to hold the lock while paying for this
+        // allocation.
+        Schedule improved = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
+
+        synchronized (this) {
+            if (makespan >= this.best) {
+                return;
             }
+            best = makespan;
+            bestSchedule = improved;
+        }
+
+        // Notified outside the lock: no worker should be able to block behind a listener callback.
+        if (listener != null) {
+            listener.onNewBestSchedule(graph, improved);
+        }
+    }
+
+    public void compareAndSetBestSchedule(Schedule improved) {
+        synchronized (this) {
+            if (improved.makespan() >= this.best) {
+                return;
+            }
+            best = improved.makespan();
+            bestSchedule = improved;
+        }
+
+        if (listener != null) {
+            listener.onNewBestSchedule(graph, improved);
         }
     }
 

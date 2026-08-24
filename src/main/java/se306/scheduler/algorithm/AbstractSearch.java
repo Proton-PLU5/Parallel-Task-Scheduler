@@ -30,6 +30,8 @@ public abstract class AbstractSearch extends RecursiveAction {
 
     protected int scheduledCount;
     protected int makespan;
+
+    // Critical Path Bound
     protected int currentBound;
 
     protected Deque<LogEntry> log;
@@ -81,7 +83,7 @@ public abstract class AbstractSearch extends RecursiveAction {
     }
 
     public int lowerBound() {
-        return Math.max(makespan, currentBound);
+        return Math.max(makespan, Math.max(currentBound, ctx.getLoadBound()));
     }
 
     /**
@@ -195,6 +197,22 @@ public abstract class AbstractSearch extends RecursiveAction {
                 exploreProcessors(task);
             }
         }
+    }
+
+    /**
+     * Processor symmetry: empty processors are interchangeable, so scheduling a task onto the
+     * second empty processor produces a schedule identical to the first up to relabeling. Only
+     * the first empty processor is worth exploring, and every processor after it can be skipped.
+     *
+     * @return the exclusive upper bound on processors worth exploring for the current state.
+     */
+    protected final int processorLimit() {
+        int numProcessors = ctx.getNumProcessors();
+
+        for (int processor = 0; processor < numProcessors; processor++) {
+            if (taskCountOn[processor] == 0) return processor + 1;
+        }
+        return numProcessors;
     }
 
     /**

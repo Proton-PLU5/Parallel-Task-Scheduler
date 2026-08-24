@@ -25,6 +25,8 @@ public class ParallelAlgorithm implements Algorithm {
     }
 
     public Schedule solve() {
+        context.runGreedyAlgorithm();
+
         ParallelSearch root = new ParallelSearch(context);
         pool.invoke(root);
         pool.shutdown();

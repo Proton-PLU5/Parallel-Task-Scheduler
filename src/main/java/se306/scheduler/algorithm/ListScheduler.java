@@ -13,7 +13,7 @@ import se306.scheduler.schedule.Schedule;
  * considering processor availability and communication costs from predecessor
  * tasks.
  */
-public final class ListScheduler {
+public final class ListScheduler implements Algorithm {
 
     private final TaskGraph graph;
     private final int numProcessors;
@@ -62,5 +62,10 @@ public final class ListScheduler {
         }
 
         return new Schedule(graph, startTime, processorOf, numProcessors);
+    }
+
+    @Override
+    public SearchContext getContext() {
+        return null;
     }
 }
