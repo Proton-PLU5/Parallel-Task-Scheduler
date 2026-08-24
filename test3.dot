@@ -1,0 +1,44 @@
+/* ============================================================
+   messy_test.dot
+   A stress test for the DOT parser (WBS 2.2).
+   The REAL graph buried in here is identical to Figure 1:
+       nodes:  a=2, b=3, c=3, d=2
+       edges:  a->b=1, a->c=2, b->d=2, c->d=1
+   Everything else is legal DOT noise that must be ignored.
+   ============================================================ */
+
+# this is a hash-style comment line and should be ignored
+strict   digraph   "test3"   {
+
+    // graph-level defaults your parser does not care about
+    graph [ rankdir = LR , label = "ignore me" , bgcolor="white" ] ;
+    node  [ shape = circle, color = blue, fontsize=10 ] ;   // node defaults
+    edge  [ style = solid ]                                  // edge defaults, no semicolon
+
+    /* nodes declared with extra attributes mixed around Weight,
+       varied spacing, quoted values, and quoted names */
+    a [ color=red, Weight=2, shape=box ] ;
+    "b"[Weight = "3", label="Task B"]        // quoted name, quoted weight, no trailing ;
+    c   [ shape=doublecircle ,   Weight=3 ,  style=filled ] ;
+
+        d [Weight=2];
+
+    // an unknown standalone attribute statement to ignore
+    ratio = compress ;
+
+    /* a junk subgraph with no real task nodes — ignore entirely */
+    subgraph cluster_junk {
+        style = filled ;
+        color = lightgrey ;
+        label = "not a real task" ;
+    }
+
+    // edges, out of order, with extra attributes and mixed spacing
+    a -> c [ Weight=2, color="#00FF00" ] ;
+    b->d[Weight=2]                       // no spaces, no trailing semicolon
+    a  ->  b   [ label="dep", Weight = 1 , style=bold ] ;
+
+        c -> d [Weight=1];
+
+}
+/* trailing block comment after the closing brace, also ignore */
