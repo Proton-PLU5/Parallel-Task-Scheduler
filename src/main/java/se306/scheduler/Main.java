@@ -64,7 +64,15 @@ public final class Main {
             algorithm = new SequentialAlgorithm(graph, arguments.processorCount(), window);
         }
 
+        if (window != null) {
+            window.startMonitoring(algorithm.getContext());
+        }
+
         schedule = algorithm.solve();
+
+        if (window != null) {
+            window.stopMonitoring();
+        }
 
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());

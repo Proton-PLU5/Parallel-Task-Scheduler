@@ -20,3 +20,105 @@
 .toggle-button:pressed {
     -fx-background-color: #0065b3;
 }
+
+/* Metrics panel */
+
+.metrics-panel {
+    -fx-background-color: #1a1a19;
+    -fx-padding: 24px;
+}
+
+.metrics-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.metrics-status-pill {
+    -fx-padding: 4px 12px;
+    -fx-background-radius: 12px;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.metrics-status-pill-running {
+    -fx-background-color: rgba(195, 194, 183, 0.15);
+    -fx-text-fill: #c3c2b7;
+}
+
+.metrics-status-pill-complete {
+    -fx-background-color: rgba(12, 163, 12, 0.18);
+    -fx-text-fill: #0ca30c;
+}
+
+.metrics-tile-label {
+    -fx-text-fill: #c3c2b7;
+    -fx-font-size: 12px;
+}
+
+.metrics-tile-value {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.metrics-section-label {
+    -fx-text-fill: #c3c2b7;
+    -fx-font-size: 12px;
+}
+
+.metrics-meter-value {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.metrics-meter-track {
+    -fx-background-color: #3a3a38;
+    -fx-background-radius: 5px;
+}
+
+.metrics-meter-fill {
+    -fx-background-color: #00AAFF;
+    -fx-background-radius: 5px;
+}
+
+.metrics-chart {
+    -fx-background-color: transparent;
+}
+
+.metrics-chart .chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.metrics-chart .chart-title {
+    -fx-text-fill: #ffffff;
+}
+
+.metrics-chart .axis {
+    -fx-tick-label-fill: #898781;
+    -fx-text-fill: #898781;
+}
+
+.metrics-chart .axis-label {
+    -fx-text-fill: #c3c2b7;
+}
+
+.metrics-chart .axis-tick-mark,
+.metrics-chart .axis-minor-tick-mark {
+    -fx-stroke: #383835;
+}
+
+.metrics-chart .chart-vertical-grid-lines,
+.metrics-chart .chart-horizontal-grid-lines {
+    -fx-stroke: #2c2c2a;
+}
+
+.metrics-chart .default-color0.chart-series-line {
+    -fx-stroke: #00AAFF;
+    -fx-stroke-width: 2px;
+}
+
+.metrics-chart .default-color0.chart-line-symbol {
+    -fx-background-color: #00AAFF, #1a1a19;
+}

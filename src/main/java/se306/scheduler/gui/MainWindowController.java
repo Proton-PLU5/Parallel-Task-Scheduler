@@ -6,6 +6,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
 import javafx.scene.layout.StackPane;
@@ -22,7 +23,8 @@ public class MainWindowController {
 
     private GanttChartPanel ganttChart;
     private SearchTreePanel searchTree;
-    private StackPane currentPanel;
+    private MetricsPanel metricsPanel;
+    private Pane currentPanel;
     private boolean autoFitEnabled = true;
     private double lastDragSceneX;
     private double lastDragSceneY;
@@ -31,6 +33,7 @@ public class MainWindowController {
     public void initialize() {
         ganttChart = new GanttChartPanel(0, 0);
         searchTree = new SearchTreePanel();
+        metricsPanel = new MetricsPanel();
 
         // Keep visualization panel sizes from participating in parent layout.
         // This prevents very large graphs from expanding the window/viewport size.
@@ -282,11 +285,22 @@ public class MainWindowController {
         scheduleEnforceMinScaleAndClamp();
     }
 
+    @FXML
+    private void showMetrics() {
+        currentPanel = metricsPanel;
+        chartContainer.getChildren().setAll(currentPanel);
+        StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
+    }
+
     public GanttChartPanel getGanttChart() {
         return ganttChart;
     }
 
     public SearchTreePanel getSearchTree() {
         return searchTree;
+    }
+
+    public MetricsPanel getMetricsPanel() {
+        return metricsPanel;
     }
 }
