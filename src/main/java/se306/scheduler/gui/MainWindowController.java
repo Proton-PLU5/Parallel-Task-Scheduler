@@ -25,7 +25,6 @@ public class MainWindowController {
     private SearchTreePanel searchTree;
     private MetricsPanel metricsPanel;
     private Pane currentPanel;
-    private StackPane currentPanel;
     private boolean autoFitEnabled = true;
     private double lastDragSceneX;
     private double lastDragSceneY;
