@@ -6,6 +6,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.geometry.VPos;
 
@@ -16,14 +17,16 @@ public class GanttChartPanel extends StackPane {
 
     private static final int PIXELS_PER_UNIT = 30;
     private static final int COLUMN_WIDTH = 100;
-    private static final int LEFT_MARGIN = 50;
-    private static final int TOP_MARGIN = 30;
+    private static final int LEFT_MARGIN = 90;
+    private static final int TOP_MARGIN = 80;
+    private static final int AXIS_TITLE_FONT_SIZE = 24;
+    private static final int BODY_FONT_SIZE = 18;
+    private static final int PROCESSOR_TITLE_X = 10;
 
     private final Canvas canvas;
 
     public GanttChartPanel(double width, double height) {
         canvas = new Canvas(width, height);
-        canvas.setManaged(false);
         getChildren().add(canvas);
         StackPane.setAlignment(canvas, Pos.CENTER);
 
@@ -56,8 +59,28 @@ public class GanttChartPanel extends StackPane {
             canvas.getHeight()
         );
 
+        // Axis titles
+        gc.setFill(Color.WHITE);
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.setFont(Font.font("Arial", AXIS_TITLE_FONT_SIZE));
+        gc.fillText(
+            "Time",
+            LEFT_MARGIN + (maxTime * PIXELS_PER_UNIT) / 2.0,
+            TOP_MARGIN - 50
+        );
+
+        gc.save();
+        gc.translate(PROCESSOR_TITLE_X, TOP_MARGIN + (numProcessors * COLUMN_WIDTH) / 2.0);
+        gc.rotate(-90);
+        gc.fillText("Processors", 0, 0);
+        gc.restore();
+
+        // Use a smaller body font for tick labels and task labels.
+        gc.setFont(Font.font("Arial", BODY_FONT_SIZE));
+
         // Processor labels
-        gc.setFill(Color.BLACK);
+        gc.setFill(Color.WHITE);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
 
@@ -76,7 +99,7 @@ public class GanttChartPanel extends StackPane {
 
         // Time axis
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.setStroke(Color.LIGHTGRAY);
+        gc.setStroke(Color.WHITE);
 
         for (int t = 0; t <= maxTime; t += 2) {
             double x =
@@ -92,7 +115,7 @@ public class GanttChartPanel extends StackPane {
             );
 
             // Time label
-            gc.setFill(Color.BLACK);
+            gc.setFill(Color.WHITE);
             gc.fillText(
                 String.valueOf(t),
                 x,
