@@ -194,9 +194,13 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected final void exploreSequentially(int task, int fromProcessor, int toProcessor) {
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
+            boolean isIdle = processorFreeAt[processor] == 0;
+
             place(task, processor);
             search();
             undo();
+
+            if (isIdle) break; // All remaining processors would produce the same schedule.
         }
     }
 
