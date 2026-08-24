@@ -1,96 +1,67 @@
 # Parallel Task Scheduler
 
-Schedules a task graph onto a fixed number of homogeneous processors so that the finish time of the
-last task is as small as possible. Input and output are both DOT files.
+Schedules a task graph onto `P` homogeneous processors so that the last task finishes as early as
+possible. Input and output are both DOT files.
 
 ## Build
 
-Requires JDK 17 or newer (the build targets Java 17 bytecode) and Maven.
+Requires JDK 17 or newer and Maven.
 
 ```
-mvn package        # runs the tests and produces target/scheduler.jar
+mvn package        # runs the tests, produces target/scheduler.jar and a copy at ./scheduler.jar
 mvn test           # tests only
 ```
 
 ## Run
 
 ```
-java -Xmx4G -jar target/scheduler.jar INPUT.dot P [OPTION]...
+java -Xmx4G -jar scheduler.jar INPUT.dot P [OPTION]...
 
   INPUT.dot   task graph to schedule, in DOT format
   P           number of processors to schedule onto
 
-Options:
-  -p N        use N cores for execution in parallel (default 1)
-  -v          visualise the search
-  -o OUTPUT   output file name (default INPUT-output.dot)
+  -p N        run the search on N threads (default 1, sequential)
+  -v          visualise the search as it runs
+  -o OUTPUT   output file name (default INPUT-output.dot, beside the input)
 ```
 
-For example:
+```
+$ java -jar scheduler.jar example.dot 2
+Schedule[4 tasks, 2 processors, makespan=19] written to example-output.dot
+```
 
-```
-java -jar target/scheduler.jar example.dot 2
-```
+Exit status is 0 on success, 1 if the input can't be read or the output can't be written, 2 for a
+bad command line. Full details in [docs/cli.md](docs/cli.md).
 
 ## Layout
 
-| Package                    | Responsibility                                                                       | WBS      |
-| -------------------------- | ------------------------------------------------------------------------------------ | -------- |
-| `se306.scheduler.io`       | `DotParser` reads the input graph, `DotOutputWriter` writes the scheduled one        | 2.2, 2.4 |
-| `se306.scheduler.graph`    | `GraphBuilder` accumulates declarations, `TaskGraph` is the frozen search-time model | 2.3      |
-| `se306.scheduler.schedule` | `Schedule` - the engine's result and the writer's input                              | 3.2      |
-| `se306.scheduler.cli`      | `CliArguments` parses the command line                                               | 2.1      |
+The pipeline is `CliArguments` → `DotParser` → `TaskGraph` → `Algorithm.solve()` → `Schedule` →
+`DotOutputWriter`, wired together in `Main`.
 
-### The two graph representations
-
-Parsing and searching want different things from the graph, so they get different types.
-
-`GraphBuilder` is mutable and keyed by name, because that is what a DOT file gives us: names in any
-order, and edges that may mention a task before it is declared. Edges are kept as raw name pairs and
-only resolved in `build()`, which is also where all validation happens — undeclared endpoints,
-self-loops, contradictory redeclarations and cycles.
-
-`TaskGraph` is what `build()` produces: immutable, with every task reduced to an `int` index and all
-structure held in flat arrays. Successors and predecessors are stored in compressed sparse row form
-(one array of targets, one of offsets), so a task's neighbours are contiguous and the search does no
-string hashing and no allocation on its hot path:
-
-```java
-for (int k = graph.childStart(task); k < graph.childEnd(task); k++) {
-    int child = graph.childAt(k);
-    ...
-}
-```
-
-Because it is immutable it can be shared across every search thread with no synchronisation; only
-the search state needs thread-safe handling.
+| Package                    | Responsibility                                                          | WBS           | Docs |
+| -------------------------- | ----------------------------------------------------------------------- | ------------- | ---- |
+| `se306.scheduler.cli`      | `CliArguments` parses the command line                                  | 2.1           | [cli.md](docs/cli.md) |
+| `se306.scheduler.io`       | `DotParser` reads the input graph, `DotOutputWriter` writes the scheduled one | 2.2, 2.4 | [dot-input.md](docs/dot-input.md), [dot-output.md](docs/dot-output.md) |
+| `se306.scheduler.graph`    | `GraphBuilder` accumulates declarations, `TaskGraph` is the frozen search-time model | 2.3 | [graph-model.md](docs/graph-model.md) |
+| `se306.scheduler.schedule` | `Schedule` — the search's result and the writer's input                 | 3.2           | |
+| `se306.scheduler.algorithm` | `SequentialAlgorithm` and `ParallelAlgorithm`: DFS branch-and-bound over a `TaskGraph` | 3.1, 3.3, 3.4 | |
+| `se306.scheduler.gui`      | The JavaFX window behind `-v`: Gantt chart, metrics, search tree        |               | |
 
 **`TaskGraph`'s public API is the contract between the I/O work and the engine work — changing it
-requires team agreement.**
+requires team agreement.** See [docs/graph-model.md](docs/graph-model.md).
 
-## Status
+## Documentation
 
-Currently equivalent to the `Milestone 1` release - see below for details. This section will track
-ongoing development once work moves past that tag.
+- [Command-line interface](docs/cli.md) — usage, output naming, exit codes and messages, adding an option
+- [DOT input](docs/dot-input.md) — accepted format, tolerated noise, how parsing works, errors
+- [DOT output](docs/dot-output.md) — output format and conventions, quoting, round trip
+- [Graph model](docs/graph-model.md) — `GraphBuilder` vs `TaskGraph`, validation, accessors
 
-## Milestone 1
+Class-level Javadoc covers *what* each class does; the docs above cover *how* and *why*.
 
-Tagged `Milestone 1` on GitHub. See **Status** above for where the code currently stands relative
-to this release.
+## Tests
 
-**Scope:** read an input graph and processor count, produce a valid (not necessarily optimal) schedule.
-
-The parser, graph model, output writer and CLI are complete and tested, and `Main` runs the whole
-pipeline: read the input graph, schedule it, write the result to `-o OUTPUT` (or `INPUT-output.dot`).
-
-The scheduler itself is `ListScheduler`, a greedy list scheduler that respects `P` and the
-communication costs but is not optimal. Replacing it with the branch-and-bound search is WBS 3.1, 3.3, 3.4; the `Schedule` it returns is the interface, and nothing downstream of it needs to change.
-
-Output tasks carry `Weight`, `Start` and `Processor`, with processors numbered `1..P` — `Schedule` numbers them from 0 internally, and `DotOutputWriter` is the only
-place that conversion happens.
-
-**Not yet implemented in this release:**
-
-- No optimality guarantee (branch-and-bound search is WBS 3.1, 3.3, 3.4)
-- `-p N` and `-v` are accepted on the command line but have no effect - there's no search yet to
-  parallelise or visualise
+JUnit 5, run by `mvn test`. The sample graphs in the repository root (`example.dot`, `test2.dot`,
+`test3.dot`) are test fixtures — don't move or rename them. GitHub Actions runs the suite on every
+push to a branch other than `main`; `main` is updated through pull requests, whose branches are
+already tested.
