@@ -1,5 +1,6 @@
 package se306.scheduler.gui;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
@@ -12,84 +13,112 @@ import javafx.scene.shape.Rectangle;
 
 public class MainWindowController {
 
-    private static final double MIN_SCALE = 1.0;
+    private static final double MIN_BASE_SCALE = 1.0;
     private static final double MAX_SCALE = 4.0;
     private static final double SCROLL_ZOOM_SENSITIVITY = 0.0015;
+    private static final double SCALE_EPSILON = 1e-6;
 
     @FXML private StackPane chartContainer;
 
     private GanttChartPanel ganttChart;
     private SearchTreePanel searchTree;
     private StackPane currentPanel;
+    private boolean autoFitEnabled = true;
+    private double lastDragSceneX;
+    private double lastDragSceneY;
 
     @FXML
     public void initialize() {
         ganttChart = new GanttChartPanel(0, 0);
         searchTree = new SearchTreePanel();
 
+        configureViewportClip();
+        configureDefaultPanel();
+        configureAutoFitListeners();
+        configureInputHandlers();
+        scheduleEnforceMinScaleAndClamp();
+    }
+
+    private void configureViewportClip() {
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(chartContainer.widthProperty());
         clip.heightProperty().bind(chartContainer.heightProperty());
         chartContainer.setClip(clip);
+    }
 
-        // Show gantt chart on main screen by default
+    private void configureDefaultPanel() {
         currentPanel = ganttChart;
         chartContainer.getChildren().add(currentPanel);
-        StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
+        StackPane.setAlignment(currentPanel, Pos.CENTER);
         chartContainer.setPickOnBounds(true);
+    }
 
-        // Mouse pressing logic
-        final double[] lastDragPosition = new double[2];
-        chartContainer.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
-            if (!event.isSynthesized() && event.getButton() == MouseButton.PRIMARY) {
-                lastDragPosition[0] = event.getSceneX();
-                lastDragPosition[1] = event.getSceneY();
+    private void configureAutoFitListeners() {
+        chartContainer.widthProperty().addListener((obs, oldVal, newVal) -> scheduleEnforceMinScaleAndClamp());
+        chartContainer.heightProperty().addListener((obs, oldVal, newVal) -> scheduleEnforceMinScaleAndClamp());
+
+        ganttChart.prefWidthProperty().addListener((obs, oldVal, newVal) -> {
+            if (currentPanel == ganttChart) {
+                scheduleEnforceMinScaleAndClamp();
             }
         });
 
-        // Mouse dragging logic
+        ganttChart.prefHeightProperty().addListener((obs, oldVal, newVal) -> {
+            if (currentPanel == ganttChart) {
+                scheduleEnforceMinScaleAndClamp();
+            }
+        });
+    }
+
+    private void configureInputHandlers() {
+        chartContainer.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!event.isSynthesized() && event.getButton() == MouseButton.PRIMARY) {
+                lastDragSceneX = event.getSceneX();
+                lastDragSceneY = event.getSceneY();
+            }
+        });
+
         chartContainer.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
             if (!event.isSynthesized() && event.isPrimaryButtonDown()) {
-                currentPanel.setTranslateX(
-                    currentPanel.getTranslateX()
-                        + event.getSceneX() - lastDragPosition[0]
-                );
+                double deltaX = event.getSceneX() - lastDragSceneX;
+                double deltaY = event.getSceneY() - lastDragSceneY;
 
-                currentPanel.setTranslateY(
-                    currentPanel.getTranslateY()
-                        + event.getSceneY() - lastDragPosition[1]
-                );
+                applyTranslationDelta(deltaX, deltaY);
 
-                lastDragPosition[0] = event.getSceneX();
-                lastDragPosition[1] = event.getSceneY();
+                lastDragSceneX = event.getSceneX();
+                lastDragSceneY = event.getSceneY();
                 clampPan();
             }
         });
 
-        // Scroll to zoom
         chartContainer.addEventFilter(ScrollEvent.SCROLL, event -> {
             double zoomFactor = Math.exp(event.getDeltaY() * SCROLL_ZOOM_SENSITIVITY);
             applyZoom(zoomFactor, event.getSceneX(), event.getSceneY());
             event.consume();
         });
 
-        // Pinch to zoom
         chartContainer.addEventFilter(ZoomEvent.ZOOM, event -> {
             applyZoom(event.getZoomFactor(), event.getSceneX(), event.getSceneY());
             event.consume();
         });
     }
 
+    private void scheduleEnforceMinScaleAndClamp() {
+        Platform.runLater(this::enforceMinScaleAndClamp);
+    }
+
     /**
-     * Scales {@code currentPanel} by {@code zoomFactor}, keeping the point under the cursor
-     * ({@code sceneX}, {@code sceneY}) visually fixed, and clamps the result between
-     * {@link #MIN_SCALE} and {@link #MAX_SCALE}.
+     * Handles zoom math and cursor anchoring.
+     * Scales currentPanel by zoomFactor, keeping the point under the cursor
+     * (sceneX, sceneY) visually fixed, and clamps the result between
+     * the dynamic per-panel minimum and MAX_SCALE.
      */
     private void applyZoom(double zoomFactor, double sceneX, double sceneY) {
         double oldScale = currentPanel.getScaleX();
+        double minScale = computeMinScaleForCurrentPanel();
 
         double newScale = Math.max(
-            MIN_SCALE,
+            minScale,
             Math.min(MAX_SCALE, oldScale * zoomFactor)
         );
 
@@ -97,32 +126,101 @@ public class MainWindowController {
             return;
         }
 
-        // Find exactly where the mouse is relative to the panel
+        // Disable auto-fit once the user performs a real zoom-in beyond fit scale.
+        if (newScale > minScale + SCALE_EPSILON) {
+            autoFitEnabled = false;
+        }
+
         javafx.geometry.Point2D mouseInLocal =
             currentPanel.sceneToLocal(sceneX, sceneY);
 
-        // Apply the scale
-        currentPanel.setScaleX(newScale);
-        currentPanel.setScaleY(newScale);
+        setCurrentPanelScale(newScale);
 
-        // Find where that same local point is now appearing on screen
         javafx.geometry.Point2D mouseAfterScale =
             currentPanel.localToScene(mouseInLocal);
 
-        // Move the panel so the point returns to the mouse position
-        currentPanel.setTranslateX(
-            currentPanel.getTranslateX()
-                + (sceneX - mouseAfterScale.getX())
-        );
-
-        currentPanel.setTranslateY(
-            currentPanel.getTranslateY()
-                + (sceneY - mouseAfterScale.getY())
+        applyTranslationDelta(
+            sceneX - mouseAfterScale.getX(),
+            sceneY - mouseAfterScale.getY()
         );
 
         clampPan();
     }
 
+    private double computeMinScaleForCurrentPanel() {
+        if (currentPanel == null) {
+            return MIN_BASE_SCALE;
+        }
+
+        double contentWidth = currentPanel.prefWidth(-1);
+        double contentHeight = currentPanel.prefHeight(-1);
+
+        if (contentWidth <= 0 || contentHeight <= 0) {
+            Bounds layoutBounds = currentPanel.getLayoutBounds();
+            contentWidth = layoutBounds.getWidth();
+            contentHeight = layoutBounds.getHeight();
+        }
+
+        double containerWidth = chartContainer.getWidth();
+        double containerHeight = chartContainer.getHeight();
+
+        if (contentWidth <= 0 || contentHeight <= 0 || containerWidth <= 0 || containerHeight <= 0) {
+            return MIN_BASE_SCALE;
+        }
+
+        double fitScale = Math.min(containerWidth / contentWidth, containerHeight / contentHeight);
+        return Math.min(MIN_BASE_SCALE, fitScale);
+    }
+
+    /**
+     * Handles auto fitting.
+     */
+    private void enforceMinScaleAndClamp() {
+        if (currentPanel == null) {
+            return;
+        }
+
+        double minScale = computeMinScaleForCurrentPanel();
+        boolean shouldApplyScale = autoFitEnabled || currentPanel.getScaleX() < minScale;
+        if (shouldApplyScale) {
+            setCurrentPanelScale(minScale);
+        }
+
+        if (autoFitEnabled) {
+            centerCurrentPanel();
+            return;
+        }
+
+        clampPan();
+    }
+
+    private void setCurrentPanelScale(double scale) {
+        currentPanel.setScaleX(scale);
+        currentPanel.setScaleY(scale);
+    }
+
+    private void applyTranslationDelta(double deltaX, double deltaY) {
+        currentPanel.setTranslateX(currentPanel.getTranslateX() + deltaX);
+        currentPanel.setTranslateY(currentPanel.getTranslateY() + deltaY);
+    }
+
+    private void centerCurrentPanel() {
+        double containerWidth = chartContainer.getWidth();
+        double containerHeight = chartContainer.getHeight();
+        Bounds bounds = currentPanel.getBoundsInParent();
+
+        double centeredMinX = (containerWidth - bounds.getWidth()) / 2.0;
+        double centeredMinY = (containerHeight - bounds.getHeight()) / 2.0;
+
+        applyTranslationDelta(
+            centeredMinX - bounds.getMinX(),
+            centeredMinY - bounds.getMinY()
+        );
+    }
+
+    /**
+     * Handles boundary constraints.
+     */
     private void clampPan() {
         double containerWidth = chartContainer.getWidth();
         double containerHeight = chartContainer.getHeight();
@@ -130,79 +228,53 @@ public class MainWindowController {
         Bounds bounds = currentPanel.getBoundsInParent();
 
         // Horizontal
-        if (bounds.getWidth() > containerWidth) {
-
-            // Left edge cannot move past the left side
+        if (bounds.getWidth() > containerWidth + SCALE_EPSILON) {
             if (bounds.getMinX() > 0) {
-                currentPanel.setTranslateX(
-                    currentPanel.getTranslateX() - bounds.getMinX()
-                );
+                applyTranslationDelta(-bounds.getMinX(), 0);
+            } else if (bounds.getMaxX() < containerWidth) {
+                applyTranslationDelta(containerWidth - bounds.getMaxX(), 0);
             }
-
-            // Right edge cannot move before the right side
-            else if (bounds.getMaxX() < containerWidth) {
-                currentPanel.setTranslateX(
-                    currentPanel.getTranslateX()
-                        + (containerWidth - bounds.getMaxX())
-                );
-            }
-
         } else {
-            // Content is smaller than viewport:
-            // keep it at the top-left
-            currentPanel.setTranslateX(
-                currentPanel.getTranslateX() - bounds.getMinX()
-            );
+            double centeredMinX = (containerWidth - bounds.getWidth()) / 2.0;
+            applyTranslationDelta(centeredMinX - bounds.getMinX(), 0);
         }
 
-        // Recalculate because X/Y transforms are independent,
-        // but this also gives us the current transformed bounds.
         bounds = currentPanel.getBoundsInParent();
 
         // Vertical
-        if (bounds.getHeight() > containerHeight) {
-
-            // Top edge cannot move below the top
+        if (bounds.getHeight() > containerHeight + SCALE_EPSILON) {
             if (bounds.getMinY() > 0) {
-                currentPanel.setTranslateY(
-                    currentPanel.getTranslateY() - bounds.getMinY()
-                );
+                applyTranslationDelta(0, -bounds.getMinY());
+            } else if (bounds.getMaxY() < containerHeight) {
+                applyTranslationDelta(0, containerHeight - bounds.getMaxY());
             }
-
-            // Bottom edge cannot move above the bottom
-            else if (bounds.getMaxY() < containerHeight) {
-                currentPanel.setTranslateY(
-                    currentPanel.getTranslateY()
-                        + (containerHeight - bounds.getMaxY())
-                );
-            }
-
         } else {
-            // Content is smaller than viewport:
-            // keep it at the top
-            currentPanel.setTranslateY(
-                currentPanel.getTranslateY() - bounds.getMinY()
-            );
+            double centeredMinY = (containerHeight - bounds.getHeight()) / 2.0;
+            applyTranslationDelta(0, centeredMinY - bounds.getMinY());
         }
     }
 
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-
     @FXML
     private void showGanttChart() {
-        currentPanel = ganttChart;
-        chartContainer.getChildren().setAll(currentPanel);
-        StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
+        switchToPanel(ganttChart);
     }
 
     @FXML
     private void showSearchTree() {
-        currentPanel = searchTree;
+        switchToPanel(searchTree);
+    }
+
+    private void switchToPanel(StackPane panel) {
+        currentPanel = panel;
         chartContainer.getChildren().setAll(currentPanel);
-        StackPane.setAlignment(currentPanel, Pos.TOP_LEFT);
+        StackPane.setAlignment(currentPanel, Pos.CENTER);
+
+        autoFitEnabled = true;
+
+        currentPanel.setTranslateX(0);
+        currentPanel.setTranslateY(0);
+        enforceMinScaleAndClamp();
+        scheduleEnforceMinScaleAndClamp();
     }
 
     public GanttChartPanel getGanttChart() {

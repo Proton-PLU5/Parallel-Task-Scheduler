@@ -3,6 +3,7 @@ package se306.scheduler.gui;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
@@ -24,7 +25,10 @@ public class GanttChartPanel extends StackPane {
         canvas = new Canvas(width, height);
         canvas.setManaged(false);
         getChildren().add(canvas);
-        StackPane.setAlignment(canvas, Pos.TOP_LEFT);
+        StackPane.setAlignment(canvas, Pos.CENTER);
+
+        // Keep this panel at its preferred size so parent alignment can center it.
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         prefWidthProperty().bind(canvas.widthProperty());
         prefHeightProperty().bind(canvas.heightProperty());
