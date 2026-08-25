@@ -1,12 +1,12 @@
 package se306.scheduler.gui;
 
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -128,6 +128,11 @@ public class MetricsPanel extends BorderPane {
         sectionLabel.getStyleClass().add("metrics-section-label");
         meterValue.getStyleClass().add("metrics-meter-value");
 
+        // When the row runs out of width, the HBox shrinks its children; pinning the value to its
+        // preferred size makes the section label give way instead, so the trailing "%" is never
+        // clipped off the readout.
+        meterValue.setMinWidth(Region.USE_PREF_SIZE);
+
         Region meterSpacer = new Region();
         HBox.setHgrow(meterSpacer, Priority.ALWAYS);
         HBox meterHeader = new HBox(sectionLabel, meterSpacer, meterValue);
@@ -144,6 +149,23 @@ public class MetricsPanel extends BorderPane {
         StackPane.setAlignment(meterFill, Pos.CENTER_LEFT);
 
         return new VBox(8, meterHeader, new StackPane(meterTrack, meterFill));
+    }
+
+    /**
+     * Full comma-grouped digits below a million; "12.3 M" / "4.6 B" / "1.2 T" above, so the huge
+     * branch counts a long run produces stay readable in the tiles, the meter, and the chart axis.
+     */
+    static String formatCount(long value) {
+        if (value < 1_000_000L) {
+            return String.format("%,d", value);
+        }
+        if (value < 1_000_000_000L) {
+            return String.format("%.1f M", value / 1_000_000.0);
+        }
+        if (value < 1_000_000_000_000L) {
+            return String.format("%.1f B", value / 1_000_000_000.0);
+        }
+        return String.format("%.1f T", value / 1_000_000_000_000.0);
     }
 
     private VBox statTile(String labelText, Label valueLabel) {
@@ -260,7 +282,7 @@ public class MetricsPanel extends BorderPane {
                     Math.max(frame.timeSeconds(), history.lastImprovementTime())));
         }
 
-        branchesValue.setText(String.format("%,d", frame.branchesExplored()));
+        branchesValue.setText(formatCount(frame.branchesExplored()));
         bestValue.setText(frame.bestMakespan() == Integer.MAX_VALUE ? "-" : String.format("%,d", frame.bestMakespan()));
         timeValue.setText(String.format("%.1f s", frame.timeSeconds()));
         memoryValue.setText(String.format("%,d MB", frame.usedMemoryBytes() / (1024 * 1024)));
@@ -268,9 +290,10 @@ public class MetricsPanel extends BorderPane {
 
         long pruned = frame.branchesPruned();
         long explored = frame.branchesExplored();
-        double fraction = explored == 0 ? 0 : pruned / (double) explored;
+        double fraction = explored == 0 ? 0 : pruned / (double) (pruned + explored);
         meterFraction.set(fraction);
-        meterValue.setText(String.format("%,d of %,d · %.1f%%", pruned, explored, fraction * 100));
+        meterValue.setText(String.format("%s of %s · %.1f%%",
+                formatCount(pruned), formatCount(pruned + explored), fraction * 100));
     }
 
     /** The latest time currently drawn, which is what the hover is allowed to range over. */
