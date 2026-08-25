@@ -1,6 +1,7 @@
 package se306.scheduler.gui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -41,6 +42,11 @@ public class JavaFXLauncher extends Application {
         primaryStage.setTitle("Scheduler Visualizer");
         primaryStage.setResizable(false);
         primaryStage.show();
+
+        primaryStage.setOnCloseRequest(event -> {
+            Platform.exit();
+            System.exit(0);
+        });
 
         synchronized (JavaFXLauncher.class) {
             createdWindow = window;
