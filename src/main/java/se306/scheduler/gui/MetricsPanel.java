@@ -128,6 +128,11 @@ public class MetricsPanel extends BorderPane {
         sectionLabel.getStyleClass().add("metrics-section-label");
         meterValue.getStyleClass().add("metrics-meter-value");
 
+        Label explanationLabel = new Label(
+                "The percentage of the search space that has been pruned by the algorithm. " +
+                        "Higher percentages indicate that the algorithm is effectively eliminating unpromising branches, leading to faster convergence.");
+        explanationLabel.setWrapText(true);
+        explanationLabel.getStyleClass().add("metrics-meter-explanation");
         // When the row runs out of width, the HBox shrinks its children; pinning the value to its
         // preferred size makes the section label give way instead, so the trailing "%" is never
         // clipped off the readout.
@@ -148,7 +153,7 @@ public class MetricsPanel extends BorderPane {
         meterFill.prefWidthProperty().bind(meterTrack.widthProperty().multiply(meterFraction));
         StackPane.setAlignment(meterFill, Pos.CENTER_LEFT);
 
-        return new VBox(8, meterHeader, new StackPane(meterTrack, meterFill));
+        return new VBox(8, meterHeader, new StackPane(meterTrack, meterFill), explanationLabel);
     }
 
     /**

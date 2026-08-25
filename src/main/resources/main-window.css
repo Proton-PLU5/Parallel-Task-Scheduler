@@ -65,6 +65,12 @@
 .metrics-section-label {
     -fx-text-fill: #c3c2b7;
     -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.metrics-meter-explanation {
+    -fx-text-fill: #c3c2b7;
+    -fx-font-size: 10px;
 }
 
 .metrics-meter-value {
