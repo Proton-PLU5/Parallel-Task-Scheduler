@@ -42,6 +42,14 @@ class CliArgumentsTest {
     }
 
     @Test
+    @DisplayName("an input without a .dot extension still defaults to INPUT-output.dot")
+    void defaultOutputForInputWithoutDotExtension() {
+        CliArguments arguments = CliArguments.parse(new String[] {"INPUT", "2"});
+
+        assertEquals(Path.of("INPUT-output.dot"), arguments.outputFile());
+    }
+
+    @Test
     @DisplayName("java -jar scheduler.jar INPUT.dot P -p N — N cores are stored")
     void parallelOption() {
         CliArguments arguments = CliArguments.parse(new String[] {"INPUT.dot", "4", "-p", "8"});
