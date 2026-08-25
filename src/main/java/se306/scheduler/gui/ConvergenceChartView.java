@@ -7,6 +7,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
+import javafx.util.StringConverter;
 import se306.scheduler.gui.MetricsHistory.Frame;
 import se306.scheduler.gui.MetricsHistory.Improvement;
 
@@ -99,6 +100,19 @@ class ConvergenceChartView extends BorderPane {
         xAxis.setAutoRanging(false);
         yAxis.setLabel("Makespan");
         yAxis.setAutoRanging(false);
+        // Same abbreviation as the tiles, so branch-count ticks read "1.2 B" rather than ten
+        // digits. Makespan-mode values are small and pass through formatCount unchanged.
+        yAxis.setTickLabelFormatter(new StringConverter<Number>() {
+            @Override
+            public String toString(Number value) {
+                return MetricsPanel.formatCount(Math.round(value.doubleValue()));
+            }
+
+            @Override
+            public Number fromString(String string) {
+                return null;
+            }
+        });
         chart.setTitle("Convergence");
         chart.setAnimated(false);
         chart.setLegendVisible(false);
