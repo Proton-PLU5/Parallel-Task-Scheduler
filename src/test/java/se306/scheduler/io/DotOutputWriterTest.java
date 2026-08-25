@@ -151,6 +151,28 @@ class DotOutputWriterTest {
     }
 
     @Test
+    @DisplayName("an empty name, unusual punctuation and backslashes are quoted and escaped")
+    void quotesEmptyNamesPunctuationAndBackslashes() {
+        GraphBuilder builder = new GraphBuilder();
+        builder.graphName("unusual");
+        builder.addNode("", 1);             // an empty name is only legal in DOT when quoted: ""
+        builder.addNode("a|b", 2);          // '|' is not a letter or digit, so this needs quotes
+        builder.addNode("back\\slash", 3);  // the task's real name is back\slash, with one backslash
+        TaskGraph graph = builder.build();
+        Schedule schedule = new Schedule(graph, new int[3], new int[3], 1);
+
+        // In the expected text below, Java's \\ stands for one real backslash. So the last task
+        // comes out in the file as "back\\slash" — DOT's way of writing one backslash in quotes.
+        assertEquals("""
+                digraph "unusual" {
+                \t""\t [Weight=1,Start=0,Processor=1];
+                \t"a|b"\t [Weight=2,Start=0,Processor=1];
+                \t"back\\\\slash"\t [Weight=3,Start=0,Processor=1];
+                }
+                """, writer.toDot(graph, schedule));
+    }
+
+    @Test
     @DisplayName("a quoted name survives a round trip through the parser")
     void quotedNamesRoundTrip() {
         GraphBuilder builder = new GraphBuilder();
