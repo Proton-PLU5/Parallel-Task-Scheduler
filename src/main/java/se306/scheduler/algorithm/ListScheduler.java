@@ -17,13 +17,23 @@ public final class ListScheduler implements Algorithm {
 
     private final TaskGraph graph;
     private final int numProcessors;
+    private final int[] taskOrder;
 
     public ListScheduler(TaskGraph graph, int numProcessors) {
+        this(graph, numProcessors, graph.topologicalOrder());
+    }
+
+    /**
+     * @param taskOrder the order to greedily schedule tasks in; must be a valid topological
+     *                  order of the graph so every task's predecessors are scheduled first.
+     */
+    public ListScheduler(TaskGraph graph, int numProcessors, int[] taskOrder) {
         if (numProcessors < 1) {
             throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
         }
         this.graph = graph;
         this.numProcessors = numProcessors;
+        this.taskOrder = taskOrder;
     }
 
     public Schedule solve() {
@@ -32,8 +42,8 @@ public final class ListScheduler implements Algorithm {
         int[] startTime = new int[n]; // start time of each task
         int[] processorFreeAt = new int[numProcessors]; // time each processor becomes free
 
-        // Process tasks in topological order so all predecessors are scheduled first
-        for (int task : graph.topologicalOrder()) {
+        // Process tasks in a topological order so all predecessors are scheduled first
+        for (int task : taskOrder) {
             int bestProcessor = 0;
             int bestStart = Integer.MAX_VALUE;
 
