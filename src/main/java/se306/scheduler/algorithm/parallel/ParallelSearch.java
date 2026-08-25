@@ -25,10 +25,13 @@ public class ParallelSearch extends AbstractSearch {
 
     @Override
     protected void exploreProcessors(int task) {
-        int numProcessors = ctx.getNumProcessors();
-        List<ParallelSearch> forked = new ArrayList<>(numProcessors - 1);
+        // Processors at or past this bound are empty duplicates of the first empty one. The
+        // break inside exploreSequentially cannot catch them here, because every call below
+        // covers a single processor - so the range is bounded up front instead.
+        int limit = processorLimit();
+        List<ParallelSearch> forked = new ArrayList<>(limit - 1);
 
-        for (int processor = 1; processor < numProcessors; processor++) {
+        for (int processor = 1; processor < limit; processor++) {
             if (getSurplusQueuedTaskCount() <= SURPLUS_THRESHOLD) {
                 ParallelSearch child = new ParallelSearch(this);
                 child.place(task, processor);

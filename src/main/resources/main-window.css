@@ -119,6 +119,53 @@
     -fx-stroke-width: 2px;
 }
 
+/*
+ * Series 0 is the staircase and series 1 marks the improvement events. The chart draws symbols
+ * for every point of both, so the staircase's symbols are hidden here: its intermediate points
+ * are corners of the step, not moments where anything happened, and showing them would suggest
+ * the search was sampled there.
+ */
 .metrics-chart .default-color0.chart-line-symbol {
+    -fx-background-color: transparent;
+}
+
+.metrics-chart .default-color1.chart-series-line {
+    -fx-stroke: transparent;
+}
+
+.metrics-chart .default-color1.chart-line-symbol {
     -fx-background-color: #00AAFF, #1a1a19;
+}
+
+/* Series 2: the leading edge of the line - where the search has got to right now. */
+.metrics-chart .default-color2.chart-series-line {
+    -fx-stroke: transparent;
+}
+
+.metrics-chart .default-color2.chart-line-symbol {
+    -fx-background-color: #FFB020, #1a1a19;
+    -fx-background-radius: 6px;
+    -fx-padding: 6px;
+}
+
+/* Series 3: the vertical crosshair that follows the cursor. Line only, no symbols. */
+.metrics-chart .default-color3.chart-series-line {
+    -fx-stroke: #6f6f6c;
+    -fx-stroke-width: 1px;
+    -fx-stroke-dash-array: 4 4;
+}
+
+.metrics-chart .default-color3.chart-line-symbol {
+    -fx-background-color: transparent;
+}
+
+/* Series 4: the dot where the crosshair meets the line. */
+.metrics-chart .default-color4.chart-series-line {
+    -fx-stroke: transparent;
+}
+
+.metrics-chart .default-color4.chart-line-symbol {
+    -fx-background-color: #FFFFFF, #1a1a19;
+    -fx-background-radius: 5px;
+    -fx-padding: 5px;
 }
