@@ -32,6 +32,13 @@ public class ParallelSearch extends AbstractSearch {
         List<ParallelSearch> forked = new ArrayList<>(limit - 1);
 
         for (int processor = 1; processor < limit; processor++) {
+            if (isPermutationDuplicate(task, processor) || isDoomed(task, processor)) {
+                // Checked before forking: skipping here saves constructing the child
+                // and cloning its state arrays, not just the subtree walk.
+                countPruned();
+                continue;
+            }
+
             if (getSurplusQueuedTaskCount() <= SURPLUS_THRESHOLD) {
                 ParallelSearch child = new ParallelSearch(this);
                 child.place(task, processor);

@@ -16,6 +16,7 @@ public class SearchContext {
 
     private final int numProcessors;
     private final int[] bottomLevel;
+    private final int[] taskPriorityOrder;
     private final int totalWork;
     private final SearchListener listener;
 
@@ -33,6 +34,7 @@ public class SearchContext {
         this.graph = graph;
         this.numProcessors = numProcessors;
         this.bottomLevel = computeBottomLevel(graph);
+        this.taskPriorityOrder = computeTaskPriorityOrder(graph);
         this.totalWork = computeTotalWork(graph);
         this.listener = listener;
         this.metrics = new SearchMetrics();
@@ -84,6 +86,31 @@ public class SearchContext {
     }
 
     /**
+     * All tasks sorted by descending bottom level (ties broken by topological position, so a
+     * parent always sorts before an equal-bottom-level child). Iterating ready tasks in this
+     * order sends the DFS down critical-path branches first, which tends to find near-optimal
+     * schedules early and makes every subsequent bound check stronger. The search still visits
+     * every ready task at every node, so this changes only the visit order, never completeness.
+     */
+    private int[] computeTaskPriorityOrder(TaskGraph graph) {
+        int n = graph.taskCount();
+        int[] topological = graph.topologicalOrder();
+        int[] order = topological.clone();
+
+        // Insertion sort by descending bottom level; stable, so the topological tie-break holds.
+        for (int i = 1; i < n; i++) {
+            int task = order[i];
+            int j = i - 1;
+            while (j >= 0 && bottomLevel[order[j]] < bottomLevel[task]) {
+                order[j + 1] = order[j];
+                j--;
+            }
+            order[j + 1] = task;
+        }
+        return order;
+    }
+
+    /**
      * A static lower bound on the makespan: every task's weight must be assigned to exactly one
      * processor, so the total work across all processors is fixed at totalWork regardless of how
      * the schedule turns out. No processor can do more than M work by time M, so summed over all
@@ -97,12 +124,29 @@ public class SearchContext {
         return (totalWork + numProcessors - 1) / numProcessors;
     }
 
+    /**
+     * The load bound, tightened by idle time the partial schedule has already committed to.
+     * Tasks are only ever appended at or after a processor's free time, so a gap left on a
+     * processor can never be filled later: the schedule must fit totalWork plus every
+     * committed gap into numProcessors timelines, giving
+     * M >= ceil((totalWork + idleTime) / numProcessors). Unlike the static form this grows
+     * as a branch commits to bad gaps, so it starts pruning where the static bound cannot.
+     *
+     * @param idleTime total idle time committed so far across all processors
+     * @return the idle-aware load-balance lower bound on the makespan
+     */
+    public int getLoadBound(int idleTime) {
+        return (totalWork + idleTime + numProcessors - 1) / numProcessors;
+    }
+
     public void runGreedyAlgorithm() {
         TaskGraph graph = getGraph();
-        Algorithm greedyAlogorithm = new ListScheduler(graph, getNumProcessors());
 
-        Schedule greedySchedule = greedyAlogorithm.solve();
-        compareAndSetBestSchedule(greedySchedule);
+        // Two greedy passes seed `best`: plain topological order, and critical-path priority
+        // (descending bottom level). Whichever is better wins; a tighter seed makes every
+        // bound check in the exact search stronger from the very first node.
+        compareAndSetBestSchedule(new ListScheduler(graph, getNumProcessors()).solve());
+        compareAndSetBestSchedule(new ListScheduler(graph, getNumProcessors(), taskPriorityOrder).solve());
     }
 
     /**
@@ -162,6 +206,8 @@ public class SearchContext {
     public TaskGraph getGraph() { return graph; }
     public int getNumProcessors() { return numProcessors; }
     public int getBottomLevel(int task) { return bottomLevel[task]; }
+    /** All tasks by descending bottom level. Read-only — never modify the returned array. */
+    public int[] getTaskPriorityOrder() { return taskPriorityOrder; }
     public int getBest() { return best; }
     public Schedule getBestSchedule() { return bestSchedule; }
     public SearchMetrics getMetrics() { return metrics; }
