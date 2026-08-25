@@ -34,9 +34,9 @@ Conventions the writer guarantees:
 
 - **Processors are 1-based in the file** (as in the project description) and 0-based everywhere
   inside the program (`Schedule.processor(task)`). The `+1` happens in `DotOutputWriter` and
-  nowhere else — don't add another.
-- **Order is deterministic.** Tasks come out in graph index order — the order their `Weight` was
-  declared in the input — followed by every dependency, grouped by source task with successors in
+  nowhere else; don't add another.
+- **Order is deterministic.** Tasks come out in graph index order (the order their `Weight` was
+  declared in the input), followed by every dependency, grouped by source task with successors in
   ascending index order. The same graph and schedule always produce byte-identical output, which is
   what makes the writer testable with string comparison.
 - **Layout matches the sample inputs**: one tab of indentation, a tab-space gap before the attribute
@@ -45,7 +45,7 @@ Conventions the writer guarantees:
   out as `digraph "graph"`.
 - **Names are quoted only when DOT requires it**: a name that is an ASCII letter or `_` followed by
   letters, digits and `_`, and is not a DOT keyword (`strict`, `graph`, `digraph`, `subgraph`,
-  `node`, `edge`), is written bare; anything else — spaces, punctuation, a leading digit, non-ASCII —
+  `node`, `edge`), is written bare; anything else (spaces, punctuation, a leading digit, non-ASCII)
   is quoted, with `"` and `\` escaped. A needlessly quoted `"A"` in the input therefore comes out as
   `A`, which is the same DOT.
 
@@ -54,7 +54,7 @@ Conventions the writer guarantees:
 `TaskGraph` keeps only names, weights and edges, so nothing else from the input survives: comments,
 `strict`, graph/node/edge defaults, colours, labels, shapes, subgraph groupings. None of it is part
 of the required output. If a future feature needs to preserve any of it, it has to be carried
-through `GraphBuilder` and `TaskGraph` — the writer never sees the original text.
+through `GraphBuilder` and `TaskGraph`; the writer never sees the original text.
 
 ## API
 
@@ -67,7 +67,7 @@ public final class DotOutputWriter {
 
 - `write` renders with `toDot`, creates any missing parent directory (so `-o results/schedule.dot`
   works on a clean checkout), and writes UTF-8, replacing an existing file.
-- `toDot` returns the text — used by the tests, and available for anything that wants the DOT
+- `toDot` returns the text: used by the tests, and available for anything that wants the DOT
   without a file (e.g. the visualisation).
 - Both throw `IllegalArgumentException` if `schedule.taskCount() != graph.taskCount()`. That is the
   writer's only validation: it trusts that `Schedule`'s constructor has already checked every task
@@ -80,7 +80,7 @@ public final class DotOutputWriter {
 
 The output is valid input: `Start` and `Processor` are just attributes the parser ignores, so
 parsing an output file gives back a `TaskGraph` equal to the one it was written from. This is
-tested, and it's worth keeping true — it's what lets you re-schedule a result and lets the tests
+tested, and it's worth keeping true: it's what lets you re-schedule a result and lets the tests
 check the writer without golden files for every case.
 
 ## Tests

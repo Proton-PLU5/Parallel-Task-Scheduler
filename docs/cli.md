@@ -13,13 +13,13 @@ java -Xmx4G -jar scheduler.jar INPUT.dot P [-p N] [-v] [-o OUTPUT]
 
 | Argument    | Meaning                                                            | Constraint            |
 | ----------- | ------------------------------------------------------------------ | --------------------- |
-| `INPUT.dot` | Task graph to schedule, in DOT — see [DOT input](dot-input.md)     | Must exist            |
+| `INPUT.dot` | Task graph to schedule, in DOT. See [DOT input](dot-input.md)      | Must exist            |
 | `P`         | Number of processors to schedule onto                              | Integer, at least 1   |
 
 | Option      | Meaning                                                            | Default                          |
 | ----------- | ------------------------------------------------------------------ | -------------------------------- |
-| `-p N`      | Run the search on `N` threads (`ParallelAlgorithm`, a `ForkJoinPool` of size `N`) | `1` — sequential search |
-| `-v`        | Open the JavaFX window and show the search as it runs              | Off                              |
+| `-p N`      | Run the search on `N` threads (`ParallelAlgorithm`, a `ForkJoinPool` of size `N`; see [parallel.md](parallel.md)) | `1`, the sequential search |
+| `-v`        | Open the JavaFX window and show the search as it runs (see [gui.md](gui.md)) | Off                    |
 | `-o OUTPUT` | File to write the schedule to                                      | `INPUT-output.dot` beside the input |
 
 Rules the parser applies:
@@ -30,7 +30,7 @@ Rules the parser applies:
 - `N` (search threads) and `P` (processors in the schedule) are independent. `N` larger than the
   machine's core count is allowed.
 - The jar sets no JVM options itself. The project specification fixes the heap at 4 GB, hence
-  `-Xmx4G` in the usage line — run with it so timings match the marking environment.
+  `-Xmx4G` in the usage line; run with it so timings match the marking environment.
 
 ## Output file name
 
@@ -51,9 +51,17 @@ The file is always written and always replaces an existing file of the same name
 
 | Exit | When                                                                        | Where it's reported |
 | ---- | --------------------------------------------------------------------------- | ------------------- |
-| `0`  | Schedule written. Stdout: `Schedule[4 tasks, 2 processors, makespan=19] written to example-output.dot` | stdout |
+| `0`  | Schedule written. Stdout shows the solve time, then the summary (see below) | stdout              |
 | `1`  | Input can't be read, isn't a valid task graph, or output can't be written   | stderr, `Error: …`  |
 | `2`  | Command line doesn't match the usage                                        | stderr, `Error: …`  |
+
+A successful run prints exactly two lines to stdout: the solve time as soon as the search
+finishes, and the summary once the file is written.
+
+```
+Schedule generated in 0.012 seconds
+Schedule[4 tasks, 2 processors, makespan=19] written to example-output.dot
+```
 
 Every exit-2 message is produced by `CliArguments.parse`:
 
@@ -68,7 +76,7 @@ Every exit-2 message is produced by `CliArguments.parse`:
 
 Exit-1 messages come from the stage that failed: `could not read 'INPUT.dot': …` when the file is
 missing, the parser and graph-validation messages listed in [DOT input](dot-input.md#errors), or
-`could not write 'OUTPUT': …` from the writer. `Main` prints only the message — there is no usage
+`could not write 'OUTPUT': …` from the writer. `Main` prints only the message; there is no usage
 text on error.
 
 ## How it fits together
@@ -82,16 +90,17 @@ public record CliArguments(Path inputFile, int processorCount, int coreCount, bo
 }
 ```
 
-It only captures and validates — it never opens a file or starts a search. `Main` does the
+It only captures and validates; it never opens a file or starts a search. `Main` does the
 sequencing:
 
-1. `CliArguments.parse(args)` — on `CliArgumentException`, print and exit 2.
-2. `new DotParser().parse(inputFile)` — on any parse or validation error, print and exit 1.
+1. `CliArguments.parse(args)`. On `CliArgumentException`, print and exit 2.
+2. `new DotParser().parse(inputFile)`. On any parse or validation error, print and exit 1.
 3. If `-v`, launch the JavaFX window (`JavaFXLauncher.launchAndGetWindow`) and pass it to the
    algorithm as its `SearchListener`. This happens *after* parsing, so a bad input file never opens
    a window.
-4. `coreCount > 1` → `ParallelAlgorithm`, otherwise `SequentialAlgorithm`; call `solve()`.
-5. `new DotOutputWriter().write(graph, schedule, outputFile)` — on `IOException`, exit 1.
+4. `coreCount > 1` selects `ParallelAlgorithm`, otherwise `SequentialAlgorithm`; call `solve()`,
+   timing it, and print `Schedule generated in %.3f seconds`.
+5. `new DotOutputWriter().write(graph, schedule, outputFile)`. On `IOException`, exit 1.
 6. Print the schedule summary and the output path.
 
 ## Adding an option

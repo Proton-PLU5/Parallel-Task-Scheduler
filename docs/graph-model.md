@@ -5,7 +5,7 @@ Package `se306.scheduler.graph` (WBS 2.3). Source:
 [`TaskGraph`](../src/main/java/se306/scheduler/graph/TaskGraph.java),
 [`GraphValidationException`](../src/main/java/se306/scheduler/graph/GraphValidationException.java).
 
-**`TaskGraph`'s public API is the contract between the I/O work and the engine work — changing it
+**`TaskGraph`'s public API is the contract between the I/O work and the engine work; changing it
 requires team agreement.**
 
 ## Two representations
@@ -37,8 +37,8 @@ the search state needs thread-safe handling.
   wins; a later identical redeclaration is ignored). `indexOf(name)` maps back.
 - Each task's successors (`childAt`) and predecessors (`parentAt`) are in ascending index order.
 - `topologicalOrder()` is Kahn's algorithm with ties broken by lowest index, so it is reproducible.
-- Communication cost lookup `commCost(from, to)` is an `n × n` matrix — O(1), and trivial memory at
-  the sizes this project targets.
+- Communication cost lookup `commCost(from, to)` is an `n × n` matrix: O(1) to read, and trivial
+  memory at the sizes this project targets.
 
 ## Validation in `build()`
 

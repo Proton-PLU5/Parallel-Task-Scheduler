@@ -1,7 +1,8 @@
 # Parallel Task Scheduler
 
 Schedules a task graph onto `P` homogeneous processors so that the last task finishes as early as
-possible. Input and output are both DOT files.
+possible. Input and output are both DOT files. The search is an exhaustive DFS branch and bound,
+so the schedule it reports is optimal, not just good.
 
 ## Build
 
@@ -27,6 +28,7 @@ java -Xmx4G -jar scheduler.jar INPUT.dot P [OPTION]...
 
 ```
 $ java -jar scheduler.jar example.dot 2
+Schedule generated in 0.012 seconds
 Schedule[4 tasks, 2 processors, makespan=19] written to example-output.dot
 ```
 
@@ -43,25 +45,29 @@ The pipeline is `CliArguments` → `DotParser` → `TaskGraph` → `Algorithm.so
 | `se306.scheduler.cli`      | `CliArguments` parses the command line                                  | 2.1           | [cli.md](docs/cli.md) |
 | `se306.scheduler.io`       | `DotParser` reads the input graph, `DotOutputWriter` writes the scheduled one | 2.2, 2.4 | [dot-input.md](docs/dot-input.md), [dot-output.md](docs/dot-output.md) |
 | `se306.scheduler.graph`    | `GraphBuilder` accumulates declarations, `TaskGraph` is the frozen search-time model | 2.3 | [graph-model.md](docs/graph-model.md) |
-| `se306.scheduler.schedule` | `Schedule` — the search's result and the writer's input                 | 3.2           | |
-| `se306.scheduler.algorithm` | `SequentialAlgorithm` and `ParallelAlgorithm`: DFS branch-and-bound over a `TaskGraph` | 3.1, 3.3, 3.4 | |
-| `se306.scheduler.gui`      | The JavaFX window behind `-v`: Gantt chart, metrics, search tree        |               | |
+| `se306.scheduler.schedule` | `Schedule`: the search's result and the writer's input                  | 3.2           | [schedule.md](docs/schedule.md) |
+| `se306.scheduler.algorithm` | `SequentialAlgorithm` and `ParallelAlgorithm`: DFS branch-and-bound over a `TaskGraph` | 3.1, 3.3, 3.4 | [algorithm.md](docs/algorithm.md), [parallel.md](docs/parallel.md) |
+| `se306.scheduler.gui`      | The JavaFX window behind `-v`: Gantt chart, metrics, search tree        |               | [gui.md](docs/gui.md) |
 
-**`TaskGraph`'s public API is the contract between the I/O work and the engine work — changing it
+**`TaskGraph`'s public API is the contract between the I/O work and the engine work; changing it
 requires team agreement.** See [docs/graph-model.md](docs/graph-model.md).
 
 ## Documentation
 
-- [Command-line interface](docs/cli.md) — usage, output naming, exit codes and messages, adding an option
-- [DOT input](docs/dot-input.md) — accepted format, tolerated noise, how parsing works, errors
-- [DOT output](docs/dot-output.md) — output format and conventions, quoting, round trip
-- [Graph model](docs/graph-model.md) — `GraphBuilder` vs `TaskGraph`, validation, accessors
+- [Command-line interface](docs/cli.md): usage, output naming, exit codes and messages, adding an option
+- [DOT input](docs/dot-input.md): accepted format, tolerated noise, how parsing works, errors
+- [DOT output](docs/dot-output.md): output format and conventions, quoting, round trip
+- [Graph model](docs/graph-model.md): `GraphBuilder` vs `TaskGraph`, validation, accessors
+- [Schedule](docs/schedule.md): the result type, what its constructor does and doesn't validate
+- [Search algorithm](docs/algorithm.md): how the branch and bound works, the bounds, every pruning
+- [Parallel search](docs/parallel.md): how the search runs on `N` threads and why that is safe
+- [Visualisation](docs/gui.md): what the `-v` window shows and where its data comes from
 
 Class-level Javadoc covers *what* each class does; the docs above cover *how* and *why*.
 
 ## Tests
 
 JUnit 5, run by `mvn test`. The sample graphs in the repository root (`example.dot`, `test2.dot`,
-`test3.dot`) are test fixtures — don't move or rename them. GitHub Actions runs the suite on every
+`test3.dot`) are test fixtures; don't move or rename them. GitHub Actions runs the suite on every
 push to a branch other than `main`; `main` is updated through pull requests, whose branches are
 already tested.
