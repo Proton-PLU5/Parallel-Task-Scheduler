@@ -68,11 +68,19 @@ public final class Main {
             window.startMonitoring(algorithm.getContext());
         }
 
+        // Debug to print finish time
+        long scheduleStartNanos = System.nanoTime();
         schedule = algorithm.solve();
+        long scheduleElapsedNanos = System.nanoTime() - scheduleStartNanos;
 
         if (window != null) {
             window.stopMonitoring();
         }
+
+        System.out.printf(
+                "Schedule generated in %.3f seconds%n",
+                scheduleElapsedNanos / 1_000_000_000.0);
+
 
         } catch (DotParseException | GraphValidationException | IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
