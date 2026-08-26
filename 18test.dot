@@ -1,0 +1,32 @@
+digraph "hard18" {
+    start [Weight=3];
+    start -> a1 [Weight=2]; start -> a2 [Weight=4]; start -> a3 [Weight=1]; start -> a4 [Weight=3]; start -> a5 [Weight=2];
+
+    a1 [Weight=7]; a2 [Weight=4]; a3 [Weight=9]; a4 [Weight=3]; a5 [Weight=8];
+
+    a1 -> b1 [Weight=3]; a1 -> b2 [Weight=1];
+    a2 -> b1 [Weight=2]; a2 -> b2 [Weight=4]; a2 -> b3 [Weight=2];
+    a3 -> b2 [Weight=1]; a3 -> b3 [Weight=3];
+    a4 -> b3 [Weight=2]; a4 -> b4 [Weight=4];
+    a5 -> b4 [Weight=3]; a5 -> b1 [Weight=1];
+
+    b1 [Weight=6]; b2 [Weight=2]; b3 [Weight=9]; b4 [Weight=5];
+
+    b1 -> c1 [Weight=2];
+    b2 -> c1 [Weight=4]; b2 -> c2 [Weight=1]; b2 -> c4 [Weight=3];
+    b3 -> c2 [Weight=2]; b3 -> c3 [Weight=4];
+    b4 -> c3 [Weight=1]; b4 -> c4 [Weight=2];
+
+    c1 [Weight=8]; c2 [Weight=3]; c3 [Weight=7]; c4 [Weight=4];
+
+    c1 -> d1 [Weight=3];
+    c2 -> d1 [Weight=1]; c2 -> d2 [Weight=4];
+    c3 -> d2 [Weight=2]; c3 -> d3 [Weight=1];
+    c4 -> d3 [Weight=3]; c4 -> d1 [Weight=2];
+
+    d1 [Weight=9]; d2 [Weight=2]; d3 [Weight=6];
+
+    d1 -> end [Weight=1]; d2 -> end [Weight=1]; d3 -> end [Weight=1];
+
+    end [Weight=3];
+}
