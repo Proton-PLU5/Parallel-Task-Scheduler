@@ -6,6 +6,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.Pane;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
@@ -33,6 +34,7 @@ public class MainWindowController {
     private static final double SCALE_EPSILON = 1e-6;
 
     @FXML private StackPane chartContainer;
+    @FXML private ToggleGroup viewToggleGroup;
 
     private GanttChartPanel ganttChart;
     private MetricsPanel metricsPanel;
@@ -66,7 +68,17 @@ public class MainWindowController {
         configureDefaultPanel();
         configureAutoFitListeners();
         configureInputHandlers();
+        configureViewToggleGroup();
         scheduleEnforceMinScaleAndClamp();
+    }
+
+    /** Prevents the view toggle group from ending up with no button selected. */
+    private void configureViewToggleGroup() {
+        viewToggleGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                viewToggleGroup.selectToggle(oldToggle);
+            }
+        });
     }
 
     /**
