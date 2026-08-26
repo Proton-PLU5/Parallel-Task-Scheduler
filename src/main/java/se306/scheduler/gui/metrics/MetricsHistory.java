@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.util.Duration;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
@@ -39,6 +39,9 @@ class MetricsHistory {
     private int currentBest = Integer.MAX_VALUE;
     private double lastImprovementTime;
 
+    /** @param sampleInterval the interval frames are expected to be recorded at, used to derive
+     *                        playback pacing (see {@link PlaybackController}) and, once the
+     *                        history is decimated, to track the doubled effective interval. */
     MetricsHistory(Duration sampleInterval) {
         frameIntervalSeconds = sampleInterval.toSeconds();
     }

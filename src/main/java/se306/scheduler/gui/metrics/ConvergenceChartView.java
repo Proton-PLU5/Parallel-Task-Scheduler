@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -8,8 +8,8 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.util.StringConverter;
-import se306.scheduler.gui.MetricsHistory.Frame;
-import se306.scheduler.gui.MetricsHistory.Improvement;
+import se306.scheduler.gui.metrics.MetricsHistory.Frame;
+import se306.scheduler.gui.metrics.MetricsHistory.Improvement;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,9 +17,16 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
+/**
+ * Displays the best makespan over time and falls back to branch progress when no improvement occurs.
+ *
+ * <p>Also handles chart hovering and keeps the statistics in sync with the selected frame.
+ */
 class ConvergenceChartView extends BorderPane {
 
     private static final int MAX_PROGRESS_POINTS = 400;
+
+    private static final int MAX_INTEGER_TICKS = 24;
     private static final double TIME_AXIS_HEADROOM = 1.2;
     private static final double MIN_TIME_AXIS_SPAN = 1.0;
 
@@ -32,14 +39,24 @@ class ConvergenceChartView extends BorderPane {
     private final NumberAxis yAxis = new NumberAxis();
     private final LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
 
+    /** The main convergence line. */
     private final XYChart.Series<Number, Number> stepSeries = new XYChart.Series<>();
+
+    /** Marks each improvement. */
     private final XYChart.Series<Number, Number> markerSeries = new XYChart.Series<>();
+
+    /** Marks the current point in the search. */
     private final XYChart.Series<Number, Number> currentMarkerSeries = new XYChart.Series<>();
+
+    /** Vertical line shown at the hovered time. */
     private final XYChart.Series<Number, Number> crosshairSeries = new XYChart.Series<>();
+
+    /** Marks the hovered point. */
     private final XYChart.Series<Number, Number> hoverDotSeries = new XYChart.Series<>();
 
     private final Label noDataLabel = new Label("Not enough recorded steps to show a convergence trend.");
 
+    /** Whether the chart is showing search progress instead of convergence. */
     private boolean showingProgress;
     private double timeAxisUpper;
 
@@ -60,6 +77,7 @@ class ConvergenceChartView extends BorderPane {
         xAxis.setAutoRanging(false);
         yAxis.setLabel("Makespan");
         yAxis.setAutoRanging(false);
+        yAxis.setMinorTickVisible(false);
         yAxis.setTickLabelFormatter(new StringConverter<Number>() {
             @Override
             public String toString(Number value) {
@@ -150,6 +168,7 @@ class ConvergenceChartView extends BorderPane {
         }
 
         if (step.isEmpty()) {
+            // Show search progress when there are no improvements.
             plotSearchProgress(upto);
             return;
         }
@@ -165,9 +184,20 @@ class ConvergenceChartView extends BorderPane {
         markerSeries.getData().setAll(markers);
         currentMarkerSeries.getData().setAll(List.of(new XYChart.Data<>(upto, lastMakespan)));
 
-        yAxis.setLowerBound(Math.max(0, minMakespan - 6));
-        yAxis.setUpperBound(maxMakespan + 6);
-        yAxis.setTickUnit(Math.max(1, (yAxis.getUpperBound() - yAxis.getLowerBound()) / 5.0));
+        // One gridline per whole makespan, so the staircase and the live line always sit
+        // exactly on a gridline. Only a range too tall for that to stay readable falls
+        // back to a coarser integer unit.
+        int lower = Math.max(0, minMakespan - 6);
+        int upper = maxMakespan + 6;
+        int tickUnit = 1;
+        if (upper - lower > MAX_INTEGER_TICKS) {
+            tickUnit = (int) Math.ceil((upper - lower) / (double) MAX_INTEGER_TICKS);
+            lower = Math.max(0, lower / tickUnit * tickUnit);
+            upper = (upper + tickUnit - 1) / tickUnit * tickUnit;
+        }
+        yAxis.setLowerBound(lower);
+        yAxis.setUpperBound(upper);
+        yAxis.setTickUnit(tickUnit);
         setTimeAxis(upto);
         setCenter(chart);
         redrawMarkers();
@@ -208,7 +238,9 @@ class ConvergenceChartView extends BorderPane {
 
         yAxis.setLowerBound(0);
         yAxis.setUpperBound(maxBranches + Math.max(1, maxBranches / 10));
-        yAxis.setTickUnit(Math.max(1, yAxis.getUpperBound() / 5.0));
+        // Whole-number ticks for the same reason as the staircase: labels are rounded, so a
+        // fractional gridline would be labelled with a count it does not sit at.
+        yAxis.setTickUnit(Math.max(1, Math.ceil(yAxis.getUpperBound() / 5.0)));
         setTimeAxis(upto);
         setCenter(chart);
         redrawMarkers();
@@ -284,6 +316,7 @@ class ConvergenceChartView extends BorderPane {
         }
     }
 
+    /** Draws the crosshair at the given time. */
     private void moveCrosshairTo(double timeSeconds) {
         crosshairSeries.getData().setAll(List.of(
                 new XYChart.Data<>(timeSeconds, yAxis.getLowerBound()),

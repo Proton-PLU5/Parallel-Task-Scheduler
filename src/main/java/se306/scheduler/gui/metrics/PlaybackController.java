@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
