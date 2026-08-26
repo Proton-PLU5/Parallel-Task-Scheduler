@@ -3,7 +3,7 @@ package se306.scheduler;
 import java.io.IOException;
 
 import se306.scheduler.algorithm.Algorithm;
-import se306.scheduler.algorithm.SequentialAlgorithm;
+import se306.scheduler.algorithm.sequential.SequentialAlgorithm;
 import se306.scheduler.algorithm.parallel.ParallelAlgorithm;
 import se306.scheduler.cli.CliArgumentException;
 import se306.scheduler.cli.CliArguments;
@@ -14,7 +14,6 @@ import se306.scheduler.gui.MainWindow;
 import se306.scheduler.io.DotOutputWriter;
 import se306.scheduler.io.DotParseException;
 import se306.scheduler.io.DotParser;
-import se306.scheduler.algorithm.ListScheduler;
 import se306.scheduler.schedule.Schedule;
 
 /**

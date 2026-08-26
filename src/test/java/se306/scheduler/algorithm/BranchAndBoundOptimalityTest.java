@@ -1,7 +1,10 @@
 package se306.scheduler.algorithm;
 
+import se306.scheduler.algorithm.core.AbstractSearch;
+import se306.scheduler.algorithm.core.SearchContext;
 import se306.scheduler.algorithm.parallel.ParallelAlgorithm;
 import se306.scheduler.algorithm.parallel.ParallelSearch;
+import se306.scheduler.algorithm.sequential.SequentialAlgorithm;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.schedule.Schedule;
@@ -669,9 +672,9 @@ class BranchAndBoundOptimalityTest {
                     depth++;
 
                     int bound = search.utils.lowerBound();
-                    int[] partialProcOf   = search.localContext.processorOf.clone();
-                    int[] partialStartTime = search.localContext.startTime.clone();
-                    int[] partialFreeAt   = search.localContext.processorFreeAt.clone();
+                    int[] partialProcOf   = search.localContext.getProcessorOf().clone();
+                    int[] partialStartTime = search.localContext.getStartTime().clone();
+                    int[] partialFreeAt   = search.localContext.getProcessorFreeAt().clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);
@@ -717,9 +720,9 @@ class BranchAndBoundOptimalityTest {
                     search.place(firstTask, proc);
 
                     int bound = search.utils.lowerBound();
-                    int[] partialProcOf = search.localContext.processorOf.clone();
-                    int[] partialStartTime = search.localContext.startTime.clone();
-                    int[] partialFreeAt = search.localContext.processorFreeAt.clone();
+                    int[] partialProcOf = search.localContext.getProcessorOf().clone();
+                    int[] partialStartTime = search.localContext.getStartTime().clone();
+                    int[] partialFreeAt = search.localContext.getProcessorFreeAt().clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);

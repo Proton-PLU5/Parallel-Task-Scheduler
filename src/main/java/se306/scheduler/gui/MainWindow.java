@@ -5,7 +5,7 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.util.Duration;
 
-import se306.scheduler.algorithm.SearchContext;
+import se306.scheduler.algorithm.core.SearchContext;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.gantt.GanttChartPanel;

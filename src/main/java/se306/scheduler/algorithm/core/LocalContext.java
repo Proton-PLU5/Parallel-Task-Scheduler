@@ -1,4 +1,4 @@
-package se306.scheduler.algorithm;
+package se306.scheduler.algorithm.core;
 
 import se306.scheduler.graph.TaskGraph;
 
@@ -8,12 +8,11 @@ import java.util.Deque;
 
 public class LocalContext {
 
-    public int[] processorOf;
-    public int[] startTime;
-    public int[] processorFreeAt;
+    protected int[] processorOf;
+    protected int[] startTime;
+    protected int[] processorFreeAt;
     protected int[] indegreeRemaining;
     protected int[] taskCountOn;
-
     protected int scheduledCount;
     protected int makespan;
 
@@ -148,4 +147,49 @@ public class LocalContext {
             indegreeRemaining[graph.childAt(k)]++;
         }
     }
+
+    public int getMakespan() {
+        return makespan;
+    }
+
+    public int[] getProcessorOf() {
+        return processorOf;
+    }
+
+    public int[] getStartTime() {
+        return startTime;
+    }
+
+    public int[] getProcessorFreeAt() {
+        return processorFreeAt;
+    }
+
+    public int[] getIndegreeRemaining() {
+        return indegreeRemaining;
+    }
+
+    public int[] getTaskCountOn() {
+        return taskCountOn;
+    }
+
+    public int getScheduledCount() {
+        return scheduledCount;
+    }
+
+    public int getCurrentBound() {
+        return currentBound;
+    }
+
+    public int getLastPlaced() {
+        return lastPlaced;
+    }
+
+    public int getIdleTime() {
+        return idleTime;
+    }
+
+    public Deque<LogEntry> getLog() {
+        return log;
+    }
+
 }

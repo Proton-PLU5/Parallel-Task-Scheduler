@@ -1,4 +1,4 @@
-package se306.scheduler.algorithm;
+package se306.scheduler.algorithm.core;
 
 import se306.scheduler.algorithm.metrics.SearchMetrics;
 

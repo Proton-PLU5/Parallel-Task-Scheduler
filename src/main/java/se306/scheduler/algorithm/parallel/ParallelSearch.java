@@ -1,12 +1,10 @@
 package se306.scheduler.algorithm.parallel;
 
-import se306.scheduler.algorithm.AbstractSearch;
-import se306.scheduler.algorithm.SearchContext;
-import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.algorithm.core.AbstractSearch;
+import se306.scheduler.algorithm.core.SearchContext;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.RecursiveAction;
 
 public class ParallelSearch extends AbstractSearch {
 

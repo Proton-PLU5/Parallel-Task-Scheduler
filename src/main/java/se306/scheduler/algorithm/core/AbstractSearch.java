@@ -1,10 +1,8 @@
-package se306.scheduler.algorithm;
+package se306.scheduler.algorithm.core;
 
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Deque;
 import java.util.concurrent.RecursiveAction;
 
+import se306.scheduler.algorithm.AlgorithmUtils;
 import se306.scheduler.graph.TaskGraph;
 
 /**

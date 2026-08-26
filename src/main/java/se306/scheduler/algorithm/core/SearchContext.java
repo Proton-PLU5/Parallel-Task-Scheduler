@@ -1,5 +1,6 @@
-package se306.scheduler.algorithm;
+package se306.scheduler.algorithm.core;
 
+import se306.scheduler.algorithm.ListScheduler;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
