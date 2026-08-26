@@ -50,6 +50,10 @@ public class GanttChartPanel extends StackPane {
         canvas.setWidth(requiredWidth);
         canvas.setHeight(requiredHeight);
 
+        // Resize immediately to fix top left snapping problem
+        resize(requiredWidth, requiredHeight);
+        requestLayout();
+
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         gc.clearRect(

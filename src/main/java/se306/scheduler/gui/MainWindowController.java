@@ -55,7 +55,7 @@ public class MainWindowController {
     }
 
     private void configureDefaultPanel() {
-        currentPanel = ganttChart;
+        currentPanel = metricsPanel;
         chartContainer.getChildren().add(currentPanel);
         StackPane.setAlignment(currentPanel, Pos.CENTER);
         chartContainer.setPickOnBounds(true);
@@ -283,6 +283,9 @@ public class MainWindowController {
         currentPanel.setTranslateY(0);
         enforceMinScaleAndClamp();
         scheduleEnforceMinScaleAndClamp();
+
+        // Fixes gantt chart snapping problem
+        Platform.runLater(this::enforceMinScaleAndClamp);
     }
 
     @FXML
