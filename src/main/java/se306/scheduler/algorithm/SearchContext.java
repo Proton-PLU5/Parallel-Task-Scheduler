@@ -15,43 +15,64 @@ public class SearchContext {
     private final TaskGraph graph;
 
     private final int numProcessors;
+
+    // The bottom level represents longest remaining work from that task to an exit task (including the task itself)
     private final int[] bottomLevel;
+
+    // The fixed order of task IDs used to decide which ready tasks to try first.
+    // Tasks sorted by descending bottomLevel (more critical/longer downstream chain first)
     private final int[] taskPriorityOrder;
+
+    // totalWork is the sum of all task weights in the graph.
     private final int totalWork;
+
+    // The search listener used for updating the Gantt Chart
     private final SearchListener listener;
 
+    // The current best makespan.
     private volatile int best = Integer.MAX_VALUE;
+
+    // The current best schedule.
     private volatile Schedule bestSchedule;
 
+    // Constructor to create a search context without UI listener
     public SearchContext(TaskGraph graph, int numProcessors) {
         this(graph, numProcessors, null);
     }
 
+    // Constructor to create the search context.
     public SearchContext(TaskGraph graph, int numProcessors, SearchListener listener) {
         if (numProcessors < 1) {
             throw new IllegalArgumentException("numProcessors must be at least 1, was " + numProcessors);
         }
         this.graph = graph;
         this.numProcessors = numProcessors;
+
+        // Compute the bottom levels and task priority order
         this.bottomLevel = computeBottomLevel(graph);
         this.taskPriorityOrder = computeTaskPriorityOrder(graph);
+
+        // Compute the total work of the graph for load balancing lower bound calculations
         this.totalWork = computeTotalWork(graph);
+
         this.listener = listener;
         this.metrics = new SearchMetrics();
     }
 
     /**
-     * Sums the weight of every task in the graph, used by {@link #getLoadBound()}.
+     * Sums the weight of every task in the graph, used by getLoadBound()
      *
      * @param graph The task graph
      * @return The total weight of all tasks
      */
     private int computeTotalWork(TaskGraph graph) {
         int n = graph.taskCount();
+
         int sum = 0;
         for (int i = 0; i < n; i++) {
             sum += graph.weight(i);
         }
+
         return sum;
     }
 
@@ -92,46 +113,47 @@ public class SearchContext {
      * order sends the DFS down critical-path branches first, which tends to find near-optimal
      * schedules early and makes every subsequent bound check stronger. The search still visits
      * every ready task at every node, so this changes only the visit order, never completeness.
+     *
+     * @return An array of task IDs sorted by descending bottom level, with topological tie-breaking.
      */
     private int[] computeTaskPriorityOrder(TaskGraph graph) {
         int n = graph.taskCount();
+
+        // Get the topological order of tasks to use as a tie-breaker for equal bottom levels.
         int[] topological = graph.topologicalOrder();
         int[] order = topological.clone();
 
-        // Insertion sort by descending bottom level; stable, so the topological tie-break holds.
+        // Insertion sort by descending bottom level.
+        // Stable, so the topological tie-break holds.
         for (int i = 1; i < n; i++) {
             int task = order[i];
+
             int j = i - 1;
+
+            // Shift lower-priority tasks (smaller bottom level) right to insert the "task"
+            // so order stays sorted by descending bottom level; equal levels keep original order
             while (j >= 0 && bottomLevel[order[j]] < bottomLevel[task]) {
                 order[j + 1] = order[j];
                 j--;
             }
+
             order[j + 1] = task;
         }
         return order;
     }
 
     /**
-     * A static lower bound on the makespan: every task's weight must be assigned to exactly one
-     * processor, so the total work across all processors is fixed at totalWork regardless of how
-     * the schedule turns out. No processor can do more than M work by time M, so summed over all
-     * processors that's numProcessors * M >= totalWork, giving M >= ceil(totalWork / numProcessors).
-     * This holds for every partial schedule (it doesn't depend on search state at all), so it's
-     * cheap to fold into every lowerBound() call alongside the critical-path bound.
+     * A lower bound on how long the schedule must take, based on total work and any idle
+     * time already locked in.
      *
-     * @return the load-balance lower bound on the makespan
-     */
-    public int getLoadBound() {
-        return (totalWork + numProcessors - 1) / numProcessors;
-    }
-
-    /**
-     * The load bound, tightened by idle time the partial schedule has already committed to.
-     * Tasks are only ever appended at or after a processor's free time, so a gap left on a
-     * processor can never be filled later: the schedule must fit totalWork plus every
-     * committed gap into numProcessors timelines, giving
-     * M >= ceil((totalWork + idleTime) / numProcessors). Unlike the static form this grows
-     * as a branch commits to bad gaps, so it starts pruning where the static bound cannot.
+     * If you split all the work evenly across every processor, the busiest one still needs
+     * at least totalWork / numProcessors time. So the schedule can never finish faster than
+     * that, no matter how the remaining tasks get placed.
+     *
+     * Idle time makes this worse. Once a processor sits idle, that time is gone for good,
+     * later tasks only get added after it, never into the gap. So that wasted time still has
+     * to fit into the schedule somewhere, the same way real work does. Adding idleTime to
+     * totalWork before dividing accounts for that.
      *
      * @param idleTime total idle time committed so far across all processors
      * @return the idle-aware load-balance lower bound on the makespan
@@ -140,12 +162,18 @@ public class SearchContext {
         return (totalWork + idleTime + numProcessors - 1) / numProcessors;
     }
 
+    /**
+     * Run a greedy algorithm to get a good first best makespan before performing the
+     * heavier DFS BnB.
+     */
     public void runGreedyAlgorithm() {
         TaskGraph graph = getGraph();
 
-        // Two greedy passes seed `best`: plain topological order, and critical-path priority
-        // (descending bottom level). Whichever is better wins; a tighter seed makes every
+        // Run two greedy passes to seed the best makespan.
+        // One using the plain topological order, and using the critical-path priority via taskPriorityOrder
+        // Whichever is better wins, a tighter seed makes every
         // bound check in the exact search stronger from the very first node.
+
         compareAndSetBestSchedule(new ListScheduler(graph, getNumProcessors()).solve());
         compareAndSetBestSchedule(new ListScheduler(graph, getNumProcessors(), taskPriorityOrder).solve());
     }
@@ -159,33 +187,21 @@ public class SearchContext {
      * @param processorOf The processor assignments of the tasks
      */
     public void compareAndSetBestSchedule(int makespan, int[] startTime, int[] processorOf) {
-        // Fast, lock-free bail-out: `best` is volatile, so this lets the overwhelming majority
-        // of calls - schedules that don't improve on the best found so far - skip both the
-        // allocation below and the synchronized block entirely.
+        // If the current makespan is worse than the best then don't even try updating.
         if (makespan >= this.best) {
             return;
         }
 
-        // Clone/construct outside the lock. These arrays belong to the calling thread alone -
-        // each search branch owns its own startTime/processorOf - so nothing else can mutate
-        // them concurrently, and there's no reason to hold the lock while paying for this
-        // allocation.
+        // Otherwise construct a new schedule using the new startTimes, processorOfs and makespan.
         Schedule improved = new Schedule(graph, startTime.clone(), processorOf.clone(), numProcessors);
 
-        synchronized (this) {
-            if (makespan >= this.best) {
-                return;
-            }
-            best = makespan;
-            bestSchedule = improved;
-        }
-
-        // Notified outside the lock: no worker should be able to block behind a listener callback.
-        if (listener != null) {
-            listener.onNewBestSchedule(graph, improved);
-        }
+        compareAndSetBestSchedule(improved);
     }
 
+    /**
+     * An alternative way to compare and set best schedule using the LocalContext object
+     * @param context The local context of a search task.
+     */
     public void compareAndSetBestSchedule(LocalContext context) {
         int makespan = context.makespan;
         int[] startTime = context.startTime;
@@ -194,17 +210,29 @@ public class SearchContext {
         compareAndSetBestSchedule(makespan, startTime, processorOf);
     }
 
-    public void compareAndSetBestSchedule(Schedule improved) {
+    /**
+     * Another alternative way to compare and set best schedule using the Schedule object
+     * @param potentialSchedule The schedule to compare against.
+     */
+    public void compareAndSetBestSchedule(Schedule potentialSchedule) {
+        int makespan = potentialSchedule.makespan();
+
+        // Update the make span and best schedule using a monitor to ensure concurrency control.
         synchronized (this) {
-            if (improved.makespan() >= this.best) {
+            // Run again to check if any other threads may have updated in the time we were
+            // checking.
+            if (makespan >= this.best) {
                 return;
             }
-            best = improved.makespan();
-            bestSchedule = improved;
+
+            // Perform update.
+            best = makespan;
+            bestSchedule = potentialSchedule;
         }
 
+        // Notify the listener that a new best schedule is available.
         if (listener != null) {
-            listener.onNewBestSchedule(graph, improved);
+            listener.onNewBestSchedule(graph, potentialSchedule);
         }
     }
 
