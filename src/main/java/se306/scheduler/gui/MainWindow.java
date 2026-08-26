@@ -22,15 +22,13 @@ public class MainWindow implements SearchListener {
     private static final Duration SAMPLE_INTERVAL = MetricsPanel.SAMPLE_INTERVAL;
 
     private final GanttChartPanel ganttChart;
-    private final SearchTreePanel searchTree;
     private final MetricsPanel metricsPanel;
 
     private SearchContext monitoredContext;
     private Timeline sampleTimeline;
 
-    public MainWindow(GanttChartPanel ganttChart, SearchTreePanel searchTree, MetricsPanel metricsPanel) {
+    public MainWindow(GanttChartPanel ganttChart, MetricsPanel metricsPanel) {
         this.ganttChart = ganttChart;
-        this.searchTree = searchTree;
         this.metricsPanel = metricsPanel;
     }
 
@@ -51,7 +49,6 @@ public class MainWindow implements SearchListener {
             ganttChart.renderSchedule(graph, schedule);
             metricsPanel.recordImprovement(elapsedSeconds, makespan);
         });
-        // TODO: search tree will be called the same way
     }
 
     /**
