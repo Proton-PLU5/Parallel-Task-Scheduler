@@ -20,6 +20,8 @@ import java.util.function.DoubleSupplier;
 class ConvergenceChartView extends BorderPane {
 
     private static final int MAX_PROGRESS_POINTS = 400;
+
+    private static final int MAX_INTEGER_TICKS = 24;
     private static final double TIME_AXIS_HEADROOM = 1.2;
     private static final double MIN_TIME_AXIS_SPAN = 1.0;
 
@@ -60,6 +62,7 @@ class ConvergenceChartView extends BorderPane {
         xAxis.setAutoRanging(false);
         yAxis.setLabel("Makespan");
         yAxis.setAutoRanging(false);
+        yAxis.setMinorTickVisible(false);
         yAxis.setTickLabelFormatter(new StringConverter<Number>() {
             @Override
             public String toString(Number value) {
@@ -165,9 +168,20 @@ class ConvergenceChartView extends BorderPane {
         markerSeries.getData().setAll(markers);
         currentMarkerSeries.getData().setAll(List.of(new XYChart.Data<>(upto, lastMakespan)));
 
-        yAxis.setLowerBound(Math.max(0, minMakespan - 6));
-        yAxis.setUpperBound(maxMakespan + 6);
-        yAxis.setTickUnit(Math.max(1, (yAxis.getUpperBound() - yAxis.getLowerBound()) / 5.0));
+        // One gridline per whole makespan, so the staircase and the live line always sit
+        // exactly on a gridline. Only a range too tall for that to stay readable falls
+        // back to a coarser integer unit.
+        int lower = Math.max(0, minMakespan - 6);
+        int upper = maxMakespan + 6;
+        int tickUnit = 1;
+        if (upper - lower > MAX_INTEGER_TICKS) {
+            tickUnit = (int) Math.ceil((upper - lower) / (double) MAX_INTEGER_TICKS);
+            lower = Math.max(0, lower / tickUnit * tickUnit);
+            upper = (upper + tickUnit - 1) / tickUnit * tickUnit;
+        }
+        yAxis.setLowerBound(lower);
+        yAxis.setUpperBound(upper);
+        yAxis.setTickUnit(tickUnit);
         setTimeAxis(upto);
         setCenter(chart);
         redrawMarkers();
@@ -208,7 +222,9 @@ class ConvergenceChartView extends BorderPane {
 
         yAxis.setLowerBound(0);
         yAxis.setUpperBound(maxBranches + Math.max(1, maxBranches / 10));
-        yAxis.setTickUnit(Math.max(1, yAxis.getUpperBound() / 5.0));
+        // Whole-number ticks for the same reason as the staircase: labels are rounded, so a
+        // fractional gridline would be labelled with a count it does not sit at.
+        yAxis.setTickUnit(Math.max(1, Math.ceil(yAxis.getUpperBound() / 5.0)));
         setTimeAxis(upto);
         setCenter(chart);
         redrawMarkers();
