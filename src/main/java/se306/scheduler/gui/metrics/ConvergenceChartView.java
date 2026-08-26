@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -8,8 +8,8 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.util.StringConverter;
-import se306.scheduler.gui.MetricsHistory.Frame;
-import se306.scheduler.gui.MetricsHistory.Improvement;
+import se306.scheduler.gui.metrics.MetricsHistory.Frame;
+import se306.scheduler.gui.metrics.MetricsHistory.Improvement;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +17,11 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
+/**
+ * Displays the best makespan over time and falls back to branch progress when no improvement occurs.
+ *
+ * <p>Also handles chart hovering and keeps the statistics in sync with the selected frame.
+ */
 class ConvergenceChartView extends BorderPane {
 
     private static final int MAX_PROGRESS_POINTS = 400;
@@ -34,14 +39,24 @@ class ConvergenceChartView extends BorderPane {
     private final NumberAxis yAxis = new NumberAxis();
     private final LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
 
+    /** The main convergence line. */
     private final XYChart.Series<Number, Number> stepSeries = new XYChart.Series<>();
+
+    /** Marks each improvement. */
     private final XYChart.Series<Number, Number> markerSeries = new XYChart.Series<>();
+
+    /** Marks the current point in the search. */
     private final XYChart.Series<Number, Number> currentMarkerSeries = new XYChart.Series<>();
+
+    /** Vertical line shown at the hovered time. */
     private final XYChart.Series<Number, Number> crosshairSeries = new XYChart.Series<>();
+
+    /** Marks the hovered point. */
     private final XYChart.Series<Number, Number> hoverDotSeries = new XYChart.Series<>();
 
     private final Label noDataLabel = new Label("Not enough recorded steps to show a convergence trend.");
 
+    /** Whether the chart is showing search progress instead of convergence. */
     private boolean showingProgress;
     private double timeAxisUpper;
 
@@ -153,6 +168,7 @@ class ConvergenceChartView extends BorderPane {
         }
 
         if (step.isEmpty()) {
+            // Show search progress when there are no improvements.
             plotSearchProgress(upto);
             return;
         }
@@ -323,6 +339,7 @@ class ConvergenceChartView extends BorderPane {
         }
     }
 
+    /** Draws the crosshair at the given time. */
     private void moveCrosshairTo(double timeSeconds) {
         crosshairSeries.getData().setAll(List.of(
                 new XYChart.Data<>(timeSeconds, yAxis.getLowerBound()),
@@ -362,7 +379,7 @@ class ConvergenceChartView extends BorderPane {
             makespanAt(timeSeconds));
     }
 
-    /** First index whose sample time is >= timeSeconds, or frames.size() if none is. */
+    /** Finds first index whose sample time is >= timeSeconds, or frames.size() if none is. */
     private int insertionPoint(double timeSeconds) {
         List<Frame> frames = history.frames();
         int low = 0;
