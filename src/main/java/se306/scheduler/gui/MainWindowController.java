@@ -55,7 +55,7 @@ public class MainWindowController {
     }
 
     private void configureDefaultPanel() {
-        currentPanel = ganttChart;
+        currentPanel = metricsPanel;
         chartContainer.getChildren().add(currentPanel);
         StackPane.setAlignment(currentPanel, Pos.CENTER);
         chartContainer.setPickOnBounds(true);

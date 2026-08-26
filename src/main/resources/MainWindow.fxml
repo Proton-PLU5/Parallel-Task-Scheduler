@@ -23,14 +23,12 @@
                 <ToggleGroup fx:id="viewToggleGroup" />
             </fx:define>
 
-            <ToggleButton fx:id="ganttButton" onAction="#showGanttChart" selected="true" stylesheets="@main-window.css" text="Gantt Chart">
+            <ToggleButton fx:id="metricsButton" onAction="#showMetrics" selected="true" stylesheets="@main-window.css" text="Metrics">
             <toggleGroup>
                <ToggleGroup fx:id="viewToggleGroup" />
             </toggleGroup></ToggleButton>
 
-            <ToggleButton fx:id="treeButton" onAction="#showSearchTree" stylesheets="@main-window.css" text="Search Tree" toggleGroup="$viewToggleGroup" />
-
-            <ToggleButton fx:id="metricsButton" onAction="#showMetrics" stylesheets="@main-window.css" text="Metrics" toggleGroup="$viewToggleGroup" />
+            <ToggleButton fx:id="ganttButton" onAction="#showGanttChart" stylesheets="@main-window.css" text="Gantt Chart" toggleGroup="$viewToggleGroup" />
         </HBox>
     </bottom>
 
