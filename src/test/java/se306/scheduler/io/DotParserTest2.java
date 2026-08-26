@@ -43,7 +43,7 @@ class DotParserTest2 {
     @BeforeEach
     void parseTest3Dot() throws IOException {
         // Maven sets basedir to the project root; the fallback covers running from an IDE.
-        Path test3Dot = Path.of(System.getProperty("basedir", ".")).resolve("test3.dot");
+        Path test3Dot = Path.of(System.getProperty("basedir", ".")).resolve("testcases/test3.dot");
         assertTrue(Files.exists(test3Dot),
                 "test3.dot not found at " + test3Dot.toAbsolutePath());
 

@@ -67,7 +67,7 @@ Class-level Javadoc covers *what* each class does; the docs above cover *how* an
 
 ## Tests
 
-JUnit 5, run by `mvn test`. The sample graphs in the repository root (`example.dot`, `test2.dot`,
-`test3.dot`) are test fixtures; don't move or rename them. GitHub Actions runs the suite on every
+JUnit 5, run by `mvn test`. The sample graphs in the repository root (`testcases/example.dot`, `testcases/test2.dot`,
+`testcases/test3.dot`) are test fixtures; don't move or rename them. GitHub Actions runs the suite on every
 push to a branch other than `main`; `main` is updated through pull requests, whose branches are
 already tested.

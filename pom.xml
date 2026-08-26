@@ -41,11 +41,37 @@
         <artifactId>javafx-controls</artifactId>
         <version>${javafx.version}</version>
     </dependency>
-    <dependency>
-        <groupId>org.openjfx</groupId>
-        <artifactId>javafx-graphics</artifactId>
-        <version>${javafx.version}</version>
-    </dependency>
+      <!--
+        The classifier-less JavaFX artifacts above resolve to the natives of whichever machine runs
+        the build, so a jar shaded on Windows carries only .dll files and dies with
+        "Error initializing QuantumRenderer: no suitable pipeline found" on Linux/macOS. Pulling every
+        platform's javafx-graphics (the artifact that holds the glass/prism/font native libraries)
+        makes the single scheduler.jar runnable everywhere, including WSL and the marking machines.
+      -->
+      <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>win</classifier>
+      </dependency>
+      <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>linux</classifier>
+      </dependency>
+      <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>mac</classifier>
+      </dependency>
+      <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>mac-aarch64</classifier>
+      </dependency>
     <dependency>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-fxml</artifactId>
