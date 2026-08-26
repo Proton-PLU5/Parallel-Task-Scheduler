@@ -1,0 +1,27 @@
+digraph "multistart" {
+	Alpha	 [Weight=3];
+	Bravo	 [Weight=4];
+	Charlie	 [Weight=2];
+
+	Delta	 [Weight=5];
+	Echo	 [Weight=3];
+	Foxtrot	 [Weight=4];
+
+	Alpha -> Delta	 [Weight=2];
+	Bravo -> Delta	 [Weight=1];
+	Bravo -> Echo	 [Weight=2];
+	Charlie -> Echo	 [Weight=1];
+	Charlie -> Foxtrot	 [Weight=3];
+
+	Golf	 [Weight=6];
+	Hotel	 [Weight=4];
+
+	Delta -> Golf	 [Weight=2];
+	Echo -> Golf	 [Weight=1];
+	Echo -> Hotel	 [Weight=2];
+	Foxtrot -> Hotel	 [Weight=1];
+
+	India	 [Weight=3];
+	Golf -> India	 [Weight=2];
+	Hotel -> India	 [Weight=1];
+}
