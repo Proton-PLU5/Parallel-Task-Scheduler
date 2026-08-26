@@ -13,6 +13,22 @@ import javafx.geometry.VPos;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.schedule.Schedule;
 
+/**
+ * Draws a {@link Schedule} as a Gantt chart: one row per processor, one bar per task, positioned
+ * by start time and sized by duration, with a time axis along the top and processor labels down
+ * the left side.
+ *
+ * <p>Wraps a {@link Canvas} rather than being one directly, so its preferred size can be bound to
+ * the canvas's actual (dynamically resized) size — see the constructor — which is what lets
+ * {@link MainWindowController}'s auto-fit and clamping logic treat it like any other sized node
+ * despite the canvas underneath being manually resized on every {@link #renderSchedule}.
+ *
+ * <p>Every call to {@link #renderSchedule} clears the canvas and redraws it from scratch rather
+ * than incrementally updating it — simpler to reason about, and cheap enough at this scale, since
+ * the canvas only ever grows to fit the largest schedule found during a search (see the class
+ * comment on {@code DFSBranchAndBound}/{@code AbstractSearch}: a "new best" schedule's makespan is
+ * always smaller than the last, never larger).
+ */
 public class GanttChartPanel extends StackPane {
 
     private static final int PIXELS_PER_UNIT = 30;
@@ -25,6 +41,10 @@ public class GanttChartPanel extends StackPane {
 
     private final Canvas canvas;
 
+    /**
+     * Constructs the panel with the given initial canvas size — typically {@code (0, 0)}, since
+     * the canvas is resized to fit its content on the first call to {@link #renderSchedule} anyway.
+     */
     public GanttChartPanel(double width, double height) {
         canvas = new Canvas(width, height);
         getChildren().add(canvas);
@@ -37,6 +57,14 @@ public class GanttChartPanel extends StackPane {
         prefHeightProperty().bind(canvas.heightProperty());
     }
 
+    /**
+     * Resizes the canvas to fit {@code schedule} exactly, then redraws it completely: axis titles,
+     * the time axis with gridlines, processor labels, and one bar per task.
+     *
+     * <p>Safe to call from any thread that has already been marshalled onto the JavaFX Application
+     * Thread (e.g. via {@code Platform.runLater} in {@link MainWindow}) — like all JavaFX scene
+     * graph mutation, this must not be called directly from a background search thread.
+     */
     public void renderSchedule(TaskGraph graph, Schedule schedule) {
         int numProcessors = schedule.numProcessors();
         int maxTime = schedule.makespan();
@@ -74,6 +102,7 @@ public class GanttChartPanel extends StackPane {
             TOP_MARGIN - 50
         );
 
+        // "Processors" title, rotated to run vertically down the left margin.
         gc.save();
         gc.translate(PROCESSOR_TITLE_X, TOP_MARGIN + (numProcessors * COLUMN_WIDTH) / 2.0);
         gc.rotate(-90);
@@ -83,7 +112,7 @@ public class GanttChartPanel extends StackPane {
         // Use a smaller body font for tick labels and task labels.
         gc.setFont(Font.font("Arial", BODY_FONT_SIZE));
 
-        // Processor labels
+        // Processor labels (P1, P2, ...), one per row, vertically centred on that row.
         gc.setFill(Color.WHITE);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
@@ -101,7 +130,8 @@ public class GanttChartPanel extends StackPane {
             );
         }
 
-        // Time axis
+        // Time axis: a vertical gridline and a numeric label every 2 time units, spanning the
+        // full height of the processor rows so it's easy to read a task's start/end time off it.
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setStroke(Color.WHITE);
 
@@ -127,7 +157,8 @@ public class GanttChartPanel extends StackPane {
             );
         }
 
-        // Tasks
+        // Tasks: one filled, outlined rectangle per task, positioned by its start time (x) and
+        // assigned processor (y), sized by its duration, labelled with its name.
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.CENTER);
 
