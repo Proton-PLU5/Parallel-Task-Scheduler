@@ -46,7 +46,8 @@
         the build, so a jar shaded on Windows carries only .dll files and dies with
         "Error initializing QuantumRenderer: no suitable pipeline found" on Linux/macOS. Pulling every
         platform's javafx-graphics (the artifact that holds the glass/prism/font native libraries)
-        makes the single scheduler.jar runnable everywhere, including WSL and the marking machines.
+        makes the single scheduler.jar runnable on Windows, Linux and Apple Silicon macOS,
+      including WSL and the marking machines.
       -->
       <dependency>
           <groupId>org.openjfx</groupId>
@@ -60,12 +61,13 @@
           <version>${javafx.version}</version>
           <classifier>linux</classifier>
       </dependency>
-      <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-graphics</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>mac</classifier>
-      </dependency>
+      <!--
+          Intel macOS (classifier "mac") is deliberately left out: its natives have the same file
+          names as the Apple Silicon ones (libprism_es2.dylib etc.), so shading both keeps only one
+          copy and the other architecture dies with UnsatisfiedLinkError "incompatible architecture".
+          Apple Silicon wins because every current Mac is arm64; an Intel Mac needs its own build
+          with this classifier swapped back in for mac-aarch64.
+      -->
       <dependency>
           <groupId>org.openjfx</groupId>
           <artifactId>javafx-graphics</artifactId>
