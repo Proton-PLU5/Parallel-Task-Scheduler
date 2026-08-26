@@ -53,6 +53,8 @@ class MetricsHistory {
         frameIntervalSeconds = sampleInterval.toSeconds();
         currentBest = Integer.MAX_VALUE;
         lastImprovementTime = 0;
+        // Anchor the history at t=0 so hover data is valid from the very start.
+        frames.add(new Frame(0, 0, 0, 0, 0.0, Integer.MAX_VALUE));
     }
 
     /**
