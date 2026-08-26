@@ -24,20 +24,9 @@ import se306.scheduler.gui.MainWindowController;
 import se306.scheduler.schedule.Schedule;
 
 /**
- * Draws a {@link Schedule} as a Gantt chart: one row per processor, one bar per task, positioned
- * by start time and sized by duration, with a time axis along the top and processor labels down
- * the left side.
+ * Draws a schedule as a Gantt chart with one row per processor and one bar per task.
  *
- * <p>Wraps a {@link Canvas} rather than being one directly, so its preferred size can be bound to
- * the canvas's actual (dynamically resized) size (see the constructor) which is what lets
- * {@link MainWindowController}'s auto-fit and clamping logic treat it like any other sized node
- * despite the canvas underneath being manually resized on every {@link #renderSchedule}.
- *
- * <p>Every call to {@link #renderSchedule} clears the canvas and redraws it from scratch rather
- * than incrementally updating it — simpler to reason about, and cheap enough at this scale, since
- * the canvas only ever grows to fit the largest schedule found during a search (see the class
- * comment on {@code DFSBranchAndBound}/{@code AbstractSearch}: a "new best" schedule's makespan is
- * always smaller than the last, never larger).
+ * <p>The canvas is resized to fit the schedule and redrawn whenever the schedule changes.
  */
 public class GanttChartPanel extends StackPane {
 
@@ -75,8 +64,8 @@ public class GanttChartPanel extends StackPane {
     private final Canvas canvas;
 
     /**
-     * Constructs the panel with the given initial canvas size — typically {@code (0, 0)}, since
-     * the canvas is resized to fit its content on the first call to {@link #renderSchedule} anyway.
+     * Constructs the panel with the given initial canvas size (typically {@code (0, 0)}, since
+     * the canvas is resized to fit its content on the first call to {@link #renderSchedule} anyway).
      */
     public GanttChartPanel(double width, double height) {
         getStyleClass().add("gantt-chart-panel");
@@ -84,7 +73,7 @@ public class GanttChartPanel extends StackPane {
         getChildren().add(canvas);
         StackPane.setAlignment(canvas, Pos.CENTER);
 
-        // Keep this panel at its preferred size so parent alignment can center it.
+        // Keep the panel at its preferred size so it can be centered.
         setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         prefWidthProperty().bind(canvas.widthProperty());
@@ -96,7 +85,7 @@ public class GanttChartPanel extends StackPane {
      * the time axis with gridlines, processor labels, and one bar per task.
      *
      * <p>Safe to call from any thread that has already been marshalled onto the JavaFX Application
-     * Thread (e.g. via {@code Platform.runLater} in {@link MainWindow}) — like all JavaFX scene
+     * Thread (e.g. via {@code Platform.runLater} in {@link MainWindow}). Like all JavaFX scene
      * graph mutation, this must not be called directly from a background search thread.
      */
     public void renderSchedule(TaskGraph graph, Schedule schedule) {
@@ -130,7 +119,7 @@ public class GanttChartPanel extends StackPane {
         canvas.setWidth(requiredWidth);
         canvas.setHeight(requiredHeight);
 
-        // Resize immediately to fix top left snapping problem
+        // Resize immediately to avoid layout snapping.
         resize(requiredWidth, requiredHeight);
         requestLayout();
     }
@@ -180,7 +169,7 @@ public class GanttChartPanel extends StackPane {
         }
     }
 
-    /** Draws the "Time" title above the chart and the vertical "Processors" title down the left margin. */
+    /** Draws the chart axis titles. */
     private void drawAxisTitles(GraphicsContext gc, Schedule schedule) {
         int maxTime = schedule.makespan();
         int numProcessors = schedule.numProcessors();
@@ -194,7 +183,7 @@ public class GanttChartPanel extends StackPane {
                 LEFT_MARGIN + (maxTime * PIXELS_PER_UNIT) / 2.0,
                 TOP_MARGIN - 48);
 
-        // "Processors" title, rotated to run vertically down the left margin.
+        // Draw the processor title, rotated to run vertically down the left margin.
         gc.save();
         gc.translate(PROCESSOR_TITLE_X, TOP_MARGIN + (numProcessors * COLUMN_WIDTH) / 2.0);
         gc.rotate(-90);
@@ -202,7 +191,7 @@ public class GanttChartPanel extends StackPane {
         gc.restore();
     }
 
-    /** Alternate rows get a faint tint so they stay easy to scan. */
+    /** Adds alternating shading to processor rows, so they stay easy to scan. */
     private void drawRowBanding(GraphicsContext gc, Schedule schedule) {
         int numProcessors = schedule.numProcessors();
         double rowRight = canvas.getWidth() - 10;
@@ -214,7 +203,7 @@ public class GanttChartPanel extends StackPane {
         }
     }
 
-    /** Draws the "P1", "P2", ... label for each processor row, vertically centred on that row. */
+    /** Draws the processor labels. */
     private void drawProcessorLabels(GraphicsContext gc, Schedule schedule) {
         int numProcessors = schedule.numProcessors();
 
@@ -236,7 +225,7 @@ public class GanttChartPanel extends StackPane {
         }
     }
 
-    /** Draws the horizontal hairline separating each processor row from the next. */
+    /** Draws the lines separating processor rows. */
     private void drawRowDividers(GraphicsContext gc, Schedule schedule) {
         int numProcessors = schedule.numProcessors();
         double rowRight = canvas.getWidth() - 10;
@@ -263,7 +252,7 @@ public class GanttChartPanel extends StackPane {
             double x = LEFT_MARGIN
                     + t * PIXELS_PER_UNIT;
 
-            // Vertical gridline
+            // Gridline
             gc.strokeLine(
                     x,
                     TOP_MARGIN,
@@ -295,19 +284,19 @@ public class GanttChartPanel extends StackPane {
             int duration = graph.weight(t);
             int end = start + duration;
 
-            // Horizontal position = time
+            // Position from the start time.
             double x = LEFT_MARGIN
                     + start * PIXELS_PER_UNIT;
 
-            // Vertical position = processor
+            // Position from the processor.
             double y = TOP_MARGIN
                     + proc * COLUMN_WIDTH
                     + BAR_VERTICAL_PADDING;
 
-            // Width = duration
+            // Width from the task duration.
             double w = duration * PIXELS_PER_UNIT;
 
-            // Height = processor row height
+            // Match the processor row height.
             double h = COLUMN_WIDTH - 2 * BAR_VERTICAL_PADDING;
 
             Color barColor = isStartOrEnd(name) ? NEUTRAL : familyColors.get(familyKey(name));

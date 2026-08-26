@@ -18,9 +18,7 @@ public class MainWindow implements SearchListener {
     /**
      * How often the status of the search is sampled. The panel owns this interval because its
      * replay pacing is derived from it. The search never records anything itself, so this timer is
-     * the only thing that reads process CPU and heap - one cheap reading a second on the FX
-     * thread, rather than the old scheme where a worker wrote a full checkpoint on every
-     * improvement, holding the best-schedule lock while it did so.
+     * the only thing that reads process CPU and heap.
      */
     private static final Duration SAMPLE_INTERVAL = MetricsPanel.SAMPLE_INTERVAL;
 

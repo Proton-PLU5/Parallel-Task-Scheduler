@@ -11,10 +11,9 @@ import javafx.stage.Stage;
  * Bridges {@code Main}'s plain, non-JavaFX code to the JavaFX runtime.
  *
  * <p>JavaFX requires {@link Application#launch} to be called once and to control the lifecycle of
- * the {@link Application} it creates — callers can't just construct a {@code MainWindow}-like object
- * themselves. {@link #launchAndGetWindow} hides that constraint: it starts the JavaFX runtime on its
- * own thread and blocks the calling thread only until the window has been built, then hands back a
- * plain {@link MainWindow} object that the rest of the program (in particular the search algorithm,
+ * the {@link Application} it creates. {@link #launchAndGetWindow} hides that constraint: it starts
+ * the JavaFX runtime on its own thread and blocks the calling thread only until the window has been built,
+ * then hands back a plain {@link MainWindow} object that the rest of the program (in particular the search algorithm,
  * via {@link SearchListener}) can use normally, with no further JavaFX-specific handling required.
  */
 public class JavaFXLauncher extends Application {

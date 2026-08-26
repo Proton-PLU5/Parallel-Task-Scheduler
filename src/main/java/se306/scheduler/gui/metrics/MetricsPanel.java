@@ -20,43 +20,15 @@ import se306.scheduler.gui.SearchListener;
 import se306.scheduler.gui.metrics.MetricsHistory.Frame;
 
 /**
- * Shows the progress of a running search, and replays it once it finishes.
+ * Displays search progress and allows the results to be replayed after completion.
  *
- * <p>
- * Two independent streams feed this panel, and keeping them separate is the
- * whole point of the
- * design - see {@link MetricsHistory}:
+ * <p>Improvements record when a new best schedule is found, while frames
+ * periodically record the current search statistics. Both use elapsed time so
+ * the chart and statistics stay in sync during playback and hovering.
  *
- * <ul>
- * <li><b>Improvements</b> are events. One arrives, via {@link SearchListener},
- * each time the
- * search reaches a leaf that beats the current best. They are sparse -
- * typically a handful
- * per run - and they are the only thing the algorithm pushes.
- * <li><b>Frames</b> are samples. One is taken every {@link #SAMPLE_INTERVAL} by
- * {@code MainWindow}, carrying branch counts, memory and CPU. They say nothing
- * about when
- * the search improved, only how it was doing at that moment.
- * </ul>
- *
- * <p>
- * Both are keyed on seconds since the search started, which is what makes
- * scrubbing and
- * hovering coherent: showing time t means showing the frame at t alongside the
- * improvement
- * staircase clipped to t. Crucially, improvements are never drawn as if they
- * were samples - the
- * line between two improvements is flat, because that is what actually
- * happened, and the last one
- * extends flat to the current time rather than sloping towards a point that
- * does not exist yet.
- *
- * <p>
- * This panel is the orchestrator: it owns the layout and the stat tiles, and
- * delegates the
- * convergence chart (with its hover/crosshair behaviour) to
- * {@link ConvergenceChartView} and the
- * play/pause/speed scrubbing to {@link PlaybackController}.
+ * <p>This panel manages the layout and statistics, while the chart and playback
+ * controls are handled by {@link ConvergenceChartView} and
+ * {@link PlaybackController}.
  */
 public class MetricsPanel extends BorderPane {
 
@@ -249,7 +221,7 @@ public class MetricsPanel extends BorderPane {
         refreshLive();
     }
 
-    /** Switches the panel out of live-follow and into scrubbable replay. */
+    /** Marks the search as complete and enables replay. */
     public void markComplete() {
         complete = true;
         statusPill.setText("✓ Complete");
@@ -276,7 +248,7 @@ public class MetricsPanel extends BorderPane {
             return;
         }
         if (history.isEmpty()) {
-            // An improvement can land before the first sample is taken; draw it anyway.
+            // Show improvements even before the first sample.
             chartView.render(history.lastImprovementTime());
             return;
         }
@@ -316,7 +288,7 @@ public class MetricsPanel extends BorderPane {
                 () -> showStats(frame, false));
     }
 
-    /** Fills the tiles, the meter and the timeline label from one frame. */
+    /** Updates the statistics and timeline from a frame. */
     private void showStats(Frame frame, boolean hovering) {
         if (hovering) {
             timelineLabel.setText(String.format("Hover · %.1f s", frame.timeSeconds()));

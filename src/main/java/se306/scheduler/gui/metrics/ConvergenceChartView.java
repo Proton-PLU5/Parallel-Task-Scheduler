@@ -18,13 +18,9 @@ import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
 /**
- * The convergence chart at the centre of {@link MetricsPanel}: a staircase of best-makespan-so-far
- * against time, with a fallback view of branches explored for the (normal, single-processor) case
- * where the search never improves on its first schedule.
+ * Displays the best makespan over time and falls back to branch progress when no improvement occurs.
  *
- * <p>Also owns hovering over the chart: mapping the cursor to the nearest sampled frame, and
- * drawing the crosshair and dot that mark it. {@code onHover}/{@code onHoverCleared} let the
- * owning panel keep its stat tiles in sync with whatever the chart is showing.
+ * <p>Also handles chart hovering and keeps the statistics in sync with the selected frame.
  */
 class ConvergenceChartView extends BorderPane {
 
@@ -57,24 +53,24 @@ class ConvergenceChartView extends BorderPane {
     private final NumberAxis yAxis = new NumberAxis();
     private final LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
 
-    /** The staircase itself. Its symbols are hidden in CSS; the markers series draws them instead. */
+    /** The main convergence line. */
     private final XYChart.Series<Number, Number> stepSeries = new XYChart.Series<>();
 
-    /** One point per improvement event, drawn as a dot with no connecting line. */
+    /** Marks each improvement. */
     private final XYChart.Series<Number, Number> markerSeries = new XYChart.Series<>();
 
-    /** A single dot at the leading edge of the line: where the search has got to right now. */
+    /** Marks the current point in the search. */
     private final XYChart.Series<Number, Number> currentMarkerSeries = new XYChart.Series<>();
 
-    /** A vertical line under the cursor. Two points, no symbols. */
+    /** Vertical line shown at the hovered time. */
     private final XYChart.Series<Number, Number> crosshairSeries = new XYChart.Series<>();
 
-    /** A single dot where the cursor's time meets the line. */
+    /** Marks the hovered point. */
     private final XYChart.Series<Number, Number> hoverDotSeries = new XYChart.Series<>();
 
     private final Label noDataLabel = new Label("Not enough recorded steps to show a convergence trend.");
 
-    /** Which of the two chart modes is on screen, so the hover marker knows what its y means. */
+    /** Whether the chart is showing search progress instead of convergence. */
     private boolean showingProgress;
 
     /**
@@ -204,7 +200,7 @@ class ConvergenceChartView extends BorderPane {
         }
 
         if (step.isEmpty()) {
-            // Nothing has improved yet - fall back to showing that the search is doing work.
+            // Show search progress when there are no improvements.
             plotSearchProgress(upto);
             return;
         }
@@ -344,7 +340,7 @@ class ConvergenceChartView extends BorderPane {
         }
     }
 
-    /** Stands the crosshair up at one time, spanning the full height of the plot. */
+    /** Draws the crosshair at the given time. */
     private void moveCrosshairTo(double timeSeconds) {
         crosshairSeries.getData().setAll(List.of(
                 new XYChart.Data<>(timeSeconds, yAxis.getLowerBound()),
@@ -361,7 +357,7 @@ class ConvergenceChartView extends BorderPane {
         moveCrosshairTo(time);
 
         if (!showingProgress && frame.bestMakespan() == Integer.MAX_VALUE) {
-            // Nothing had been found yet at this moment, so there is no line for the dot to sit on.
+            // No point to mark if no schedule has been found yet.
             hoverDotSeries.getData().clear();
             return;
         }
@@ -369,7 +365,7 @@ class ConvergenceChartView extends BorderPane {
         hoverDotSeries.getData().setAll(List.of(new XYChart.Data<>(time, value)));
     }
 
-    /** Binary search for the frame whose sample time is closest to the given time. */
+    /** Finds the frame closest to the given time. */
     private int nearestFrame(double timeSeconds) {
         List<Frame> frames = history.frames();
         int low = 0;

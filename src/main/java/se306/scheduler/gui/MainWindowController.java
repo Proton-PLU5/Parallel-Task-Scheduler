@@ -15,17 +15,15 @@ import se306.scheduler.gui.gantt.GanttChartPanel;
 import se306.scheduler.gui.metrics.MetricsPanel;
 
 /**
- * Controller for {@code MainWindow.fxml} — owns the visualisation viewport (the {@code chartContainer}
- * region) and everything needed to interact with whatever panel is currently shown in it: panning
- * (mouse drag), zooming (scroll wheel / trackpad scroll / pinch), auto-fit-to-viewport on load, and
- * switching between the Gantt chart and metrics panel.
- *
- * <p>The controller never runs the search itself — it only exposes the panels ({@link #getGanttChart()},
+ * Controller for {@code MainWindow.fxml}. Owns the visualisation viewport (the {@code chartContainer}
+ * region) and everything needed to interact with whatever panel is currently shown in it: panning,
+ * zooming, auto-fit-to-viewport on load, and switching between the Gantt chart and metrics panel.
+ * <p>The controller never runs the search itself, it only exposes the panels ({@link #getGanttChart()},
  * {@link #getMetricsPanel()}) so {@link MainWindow} can push updates into them from the algorithm side.
  */
 public class MainWindowController {
 
-    /** Never zoom further out than "fit to viewport" would already show — 1.0 = no extra zoom-out beyond that. */
+    /** Lower limit on how far the user can zoom out. 1.0 to prevent zooming further out than what "fit to viewport" would already show.*/
     private static final double MIN_BASE_SCALE = 1.0;
     /** Upper limit on how far the user can zoom in. */
     private static final double MAX_SCALE = 4.0;
@@ -73,8 +71,7 @@ public class MainWindowController {
 
     /**
      * Clips {@link #chartContainer} to its own bounds, so a panel that grows larger than the
-     * viewport (e.g. a Gantt chart with a large makespan) never visually spills outside it —
-     * panning/zooming, not overflow, is how the rest of an oversized panel is reached.
+     * viewport (e.g. a Gantt chart with a large makespan) never visually spills outside it.
      */
     private void configureViewportClip() {
         Rectangle clip = new Rectangle();
@@ -94,7 +91,7 @@ public class MainWindowController {
     /**
      * Re-runs auto-fit whenever the viewport resizes, or whenever the Gantt chart's own preferred
      * size changes (e.g. it grows to fit a newly-found, larger schedule) while it's the panel on
-     * screen — so the fit scale/centering always matches the current content and container size.
+     * screen, so the fit scale/centering always matches the current content and container size.
      */
     private void configureAutoFitListeners() {
         chartContainer.widthProperty().addListener((obs, oldVal, newVal) -> scheduleEnforceMinScaleAndClamp());
@@ -135,14 +132,14 @@ public class MainWindowController {
             }
         });
 
-        // Mouse wheel on PC, and two-finger scroll on trackpad.
+        // Scrolling
         chartContainer.addEventFilter(ScrollEvent.SCROLL, event -> {
             double zoomFactor = Math.exp(event.getDeltaY() * SCROLL_ZOOM_SENSITIVITY);
             applyZoom(zoomFactor, event.getSceneX(), event.getSceneY());
             event.consume();
         });
 
-        // Native pinch gesture, where the platform recognises it (e.g. macOS trackpads).
+        // Pinching for trackpads
         chartContainer.addEventFilter(ZoomEvent.ZOOM, event -> {
             applyZoom(event.getZoomFactor(), event.getSceneX(), event.getSceneY());
             event.consume();
@@ -199,7 +196,7 @@ public class MainWindowController {
 
     /**
      * The smallest scale that still fits the current panel's full content inside the viewport
-     * without cropping — i.e. "zoom to fit". Falls back to {@link #MIN_BASE_SCALE} when content or
+     * without cropping, i.e. "zoom to fit". Falls back to {@link #MIN_BASE_SCALE} when content or
      * container size isn't known yet (e.g. before the first layout pass).
      */
     private double computeMinScaleForCurrentPanel() {
@@ -252,19 +249,19 @@ public class MainWindowController {
         clampPan();
     }
 
-    /** Sets both scale axes together, since panels are always scaled uniformly (no independent X/Y zoom). */
+    /** Sets both scale axes together, since panels are always scaled uniformly. */
     private void setCurrentPanelScale(double scale) {
         currentPanel.setScaleX(scale);
         currentPanel.setScaleY(scale);
     }
 
-    /** Adds the given offset to the current panel's translation — the one place translation is ever changed. */
+    /** Adds the given offset to the current panel's translation. */
     private void applyTranslationDelta(double deltaX, double deltaY) {
         currentPanel.setTranslateX(currentPanel.getTranslateX() + deltaX);
         currentPanel.setTranslateY(currentPanel.getTranslateY() + deltaY);
     }
 
-    /** Centers the current panel within the viewport — used while auto-fit is active. */
+    /** Centers the current panel within the viewport; used while auto-fit is active. */
     private void centerCurrentPanel() {
         double containerWidth = chartContainer.getWidth();
         double containerHeight = chartContainer.getHeight();
@@ -320,12 +317,6 @@ public class MainWindowController {
         }
     }
 
-    /** Bound to the "Gantt Chart" button in the FXML — switches the viewport to show {@link #ganttChart}. */
-    @FXML
-    private void showGanttChart() {
-        switchToPanel(ganttChart);
-    }
-
     /**
      * Swaps the viewport's content to {@code panel}, resets its pan/zoom state, and re-enables
      * auto-fit so the newly-shown panel starts centered and scaled to fit, regardless of whatever
@@ -343,13 +334,17 @@ public class MainWindowController {
         enforceMinScaleAndClamp();
         scheduleEnforceMinScaleAndClamp();
 
-        // Fixes gantt chart snapping problem: a second deferred pass, since the Gantt chart's
-        // preferred size can still be settling (e.g. just resized to fit a schedule) when the
-        // immediate call above runs, leaving the first fit calculation stale.
+        // Fixes gantt chart top left snapping problem
         Platform.runLater(this::enforceMinScaleAndClamp);
     }
 
-    /** Bound to the "Metrics" button in the FXML — switches the viewport to show {@link #metricsPanel}. */
+    /** Bound to "Gantt Chart" button in FXML; switches the viewport to show {@link #ganttChart}. */
+    @FXML
+    private void showGanttChart() {
+        switchToPanel(ganttChart);
+    }
+
+    /** Bound to "Metrics" button in FXML; switches the viewport to show {@link #metricsPanel}. */
     @FXML
     private void showMetrics() {
         currentPanel = metricsPanel;
