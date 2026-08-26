@@ -16,7 +16,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
-import se306.scheduler.gui.SearchListener;
 import se306.scheduler.gui.metrics.MetricsHistory.Frame;
 
 /**
