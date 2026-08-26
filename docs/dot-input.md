@@ -10,7 +10,7 @@ graph from a DOT file into a [`TaskGraph`](graph-model.md).
 
 A task graph is a `digraph`. Nodes are tasks and their `Weight` is the execution time; edges are
 dependencies and their `Weight` is the communication cost paid when the two tasks run on different
-processors. `example.dot` in the repository root is the graph from the project description:
+processors. `../testcases/example.dot` in the repository root is the graph from the project description:
 
 ```dot
 digraph "example" {
@@ -49,7 +49,7 @@ The parser requires exactly this much and nothing more:
 ## What is tolerated
 
 Anything else that is legal DOT is accepted and ignored, so real Graphviz files work as input.
-`test3.dot` in the repository root exercises all of it: the Figure 1 graph buried under noise.
+`../testcases/test3.dot` in the repository root exercises all of it: the Figure 1 graph buried under noise.
 
 | Accepted                                                    | Example                                  |
 | ----------------------------------------------------------- | ---------------------------------------- |
@@ -134,17 +134,17 @@ than the line; keep that convention when adding new checks.
 
 ## Tests
 
-- [`DotParserTest`](../src/test/java/se306/scheduler/io/DotParserTest.java): `example.dot` and
-  `test2.dot`, the same diamond with different weights, so a weight read from the wrong place cannot
+- [`DotParserTest`](../src/test/java/se306/scheduler/io/DotParserTest.java): `../testcases/example.dot` and
+  `../testcases/test2.dot`, the same diamond with different weights, so a weight read from the wrong place cannot
   pass both. Task count, weights, edge count, direction, absence of undeclared edges, costs.
-- [`DotParserTest2`](../src/test/java/se306/scheduler/io/DotParserTest2.java): `test3.dot`, the
+- [`DotParserTest2`](../src/test/java/se306/scheduler/io/DotParserTest2.java): `../testcases/test3.dot`, the
   tolerated-noise list above, plus the graph name surviving a `strict` header.
 - [`DotOutputWriterTest`](../src/test/java/se306/scheduler/io/DotOutputWriterTest.java): parse →
   write → parse round trip, including quoted names.
 
 The fixture files live in the **repository root** and are resolved through Maven's `basedir`
-property (falling back to the working directory for IDE runs). Don't move or rename `example.dot`,
-`test2.dot` or `test3.dot` without updating the tests.
+property (falling back to the working directory for IDE runs). Don't move or rename `../testcases/example.dot`,
+`../testcases/test2.dot` or `../testcases/test3.dot` without updating the tests.
 
 ## Changing the parser
 
@@ -152,5 +152,5 @@ property (falling back to the working directory for IDE runs). Don't move or ren
   without a `Weight` is always an error.
 - Keep JGraphT inside `JGraphTDotReader`. The search must never see a JGraphT type.
 - Structural checks belong in `GraphBuilder.build()`, not here; the reader only knows about DOT.
-- Add a new tolerated construct to `test3.dot` rather than a new fixture, so one file documents
+- Add a new tolerated construct to `../testcases/test3.dot` rather than a new fixture, so one file documents
   everything the parser must survive.
