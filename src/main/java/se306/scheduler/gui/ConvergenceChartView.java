@@ -17,34 +17,10 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
-/**
- * The convergence chart in the middle of {@link MetricsPanel}: best-makespan-so-far as a
- * staircase over time, falling back to a branches-explored view when the search hasn't
- * improved on its first schedule (the normal case on a single processor).
- *
- * <p>Also handles hover: mapping the cursor to the nearest sampled frame and drawing the
- * crosshair/dot for it. {@code onHover}/{@code onHoverCleared} keep the panel's stat tiles
- * synced with whatever's under the cursor.
- */
 class ConvergenceChartView extends BorderPane {
 
-    /**
-     * Cap on points drawn for the branches-over-time fallback. The staircase only has two points
-     * per improvement so it's naturally small, but the fallback samples every frame, and at a
-     * sub-second interval that's thousands of points redrawn several times a second. This only
-     * strides down what gets drawn - the underlying history and the tiles stay full resolution.
-     */
     private static final int MAX_PROGRESS_POINTS = 400;
-
-    /**
-     * How far past the latest point to extend the time axis when it needs extending. The axis
-     * sits still until the line hits its right edge, then jumps out to this multiple of the
-     * current time. Keeps the plot growing in steps instead of creeping outward on every sample
-     * and dragging the line left.
-     */
     private static final double TIME_AXIS_HEADROOM = 1.2;
-
-    /** Smallest span the time axis will show, so an instant search still renders something readable. */
     private static final double MIN_TIME_AXIS_SPAN = 1.0;
 
     private final MetricsHistory history;
@@ -56,34 +32,19 @@ class ConvergenceChartView extends BorderPane {
     private final NumberAxis yAxis = new NumberAxis();
     private final LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
 
-    /** The staircase. Symbols are hidden in CSS - markerSeries draws the dots instead. */
     private final XYChart.Series<Number, Number> stepSeries = new XYChart.Series<>();
-
-    /** One dot per improvement event, no connecting line. */
     private final XYChart.Series<Number, Number> markerSeries = new XYChart.Series<>();
-
-    /** Dot at the leading edge of the line - wherever the search currently is. */
     private final XYChart.Series<Number, Number> currentMarkerSeries = new XYChart.Series<>();
-
-    /** Vertical line under the cursor. Two points, no symbols. */
     private final XYChart.Series<Number, Number> crosshairSeries = new XYChart.Series<>();
-
-    /** Dot where the cursor's time meets the line. */
     private final XYChart.Series<Number, Number> hoverDotSeries = new XYChart.Series<>();
 
     private final Label noDataLabel = new Label("Not enough recorded steps to show a convergence trend.");
 
-    /** Which chart mode is showing, so the hover marker knows what its y-value means. */
     private boolean showingProgress;
-
-    /**
-     * Current right edge of the time axis. Only grows - that's what keeps it still between jumps
-     * and stops it collapsing inward while scrubbing a finished run.
-     */
     private double timeAxisUpper;
 
-    /** Index of the frame under the cursor, or -1 when the cursor isn't over the plotted data. */
-    private int hoverIndex = -1;
+    /** The time under the cursor, or -1 when the cursor is not over the plotted data. */
+    private double hoverTimeSeconds = -1;
 
     ConvergenceChartView(
             MetricsHistory history,
@@ -99,8 +60,6 @@ class ConvergenceChartView extends BorderPane {
         xAxis.setAutoRanging(false);
         yAxis.setLabel("Makespan");
         yAxis.setAutoRanging(false);
-        // Same abbreviation as the tiles, so branch counts read "1.2 B" instead of ten digits.
-        // Makespan values are small enough that formatCount just passes them through unchanged.
         yAxis.setTickLabelFormatter(new StringConverter<Number>() {
             @Override
             public String toString(Number value) {
@@ -115,8 +74,6 @@ class ConvergenceChartView extends BorderPane {
         chart.setTitle("Convergence");
         chart.setAnimated(false);
         chart.setLegendVisible(false);
-        // Series order fixes the CSS colour index: 0 staircase, 1 improvement dots, 2 current
-        // marker, 3 crosshair, 4 hover dot.
         chart.getData().setAll(
                 List.of(stepSeries, markerSeries, currentMarkerSeries, crosshairSeries, hoverDotSeries));
         chart.getStyleClass().add("metrics-chart");
@@ -133,9 +90,8 @@ class ConvergenceChartView extends BorderPane {
         setCenter(noDataLabel);
     }
 
-    /** Wipes the chart state for a fresh search. */
     void reset() {
-        hoverIndex = -1;
+        hoverTimeSeconds = -1;
         stepSeries.getData().clear();
         markerSeries.getData().clear();
         currentMarkerSeries.getData().clear();
@@ -145,20 +101,20 @@ class ConvergenceChartView extends BorderPane {
         setCenter(noDataLabel);
     }
 
-    /** The frame under the cursor, if the pointer's over the plotted data. */
+    /** The (possibly interpolated) frame currently under the cursor, if it's over the plotted data. */
     Optional<Frame> hoveredFrame() {
-        if (hoverIndex < 0 || hoverIndex >= history.frameCount()) {
+        if (hoverTimeSeconds < 0 || history.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(history.frame(hoverIndex));
+        double dataTime = Math.max(earliestRealTime(), hoverTimeSeconds);
+        return Optional.of(frameAt(dataTime));
     }
 
-    /** Drops the hover and hands the readout back to whatever's otherwise shown. */
     void clearHover() {
-        if (hoverIndex < 0) {
+        if (hoverTimeSeconds < 0) {
             return;
         }
-        hoverIndex = -1;
+        hoverTimeSeconds = -1;
         hoverDotSeries.getData().clear();
         if (history.isEmpty()) {
             crosshairSeries.getData().clear();
@@ -168,15 +124,6 @@ class ConvergenceChartView extends BorderPane {
         moveCrosshairTo(currentUpto.getAsDouble());
     }
 
-    /**
-     * Draws the convergence staircase up to {@code upto} seconds, falling back to the
-     * search-progress view (or the "not enough data" label) if nothing's improved yet.
-     *
-     * <p>Each improvement is two points: one extending the previous makespan horizontally up to
-     * the moment of improvement, then one dropping to the new makespan. A final point carries the
-     * current best out to {@code upto} - the flat line saying "still the best we've got" - capped
-     * off by the current marker.
-     */
     void render(double upto) {
         List<XYChart.Data<Number, Number>> step = new ArrayList<>();
         List<XYChart.Data<Number, Number>> markers = new ArrayList<>();
@@ -203,7 +150,6 @@ class ConvergenceChartView extends BorderPane {
         }
 
         if (step.isEmpty()) {
-            // Nothing's improved yet - show that the search is at least doing work.
             plotSearchProgress(upto);
             return;
         }
@@ -215,8 +161,6 @@ class ConvergenceChartView extends BorderPane {
         showingProgress = false;
         chart.setTitle("Convergence");
         yAxis.setLabel("Makespan");
-        // setAll() swaps each series in one atomic change rather than clear()+adds, so it can't
-        // land half-applied mid-layout and leave an orphaned symbol node behind.
         stepSeries.getData().setAll(step);
         markerSeries.getData().setAll(markers);
         currentMarkerSeries.getData().setAll(List.of(new XYChart.Data<>(upto, lastMakespan)));
@@ -229,12 +173,6 @@ class ConvergenceChartView extends BorderPane {
         redrawMarkers();
     }
 
-    /**
-     * Fallback for a search that hasn't beaten its starting schedule yet - the normal case on a
-     * single processor, where the greedy schedule is already optimal and makespan never moves.
-     * Branch counts come straight from the frames, so this is a real sampled time series rather
-     * than a line through improvement events.
-     */
     private void plotSearchProgress(double upto) {
         List<Frame> frames = history.frames();
         int available = 0;
@@ -246,8 +184,6 @@ class ConvergenceChartView extends BorderPane {
             return;
         }
 
-        // Stride down for drawing only, keeping the last frame so the line ends where the
-        // current marker sits.
         int stride = Math.max(1, available / MAX_PROGRESS_POINTS);
         List<XYChart.Data<Number, Number>> data = new ArrayList<>(available / stride + 1);
         long maxBranches = 0;
@@ -278,15 +214,6 @@ class ConvergenceChartView extends BorderPane {
         redrawMarkers();
     }
 
-    /**
-     * Extends the time axis once the line actually reaches its edge, jumping out to
-     * {@link #TIME_AXIS_HEADROOM} times the current time and holding there. Between jumps the
-     * axis doesn't move, so the line stays put instead of sliding left every sample.
-     *
-     * <p>Never shrinking is also what makes replay stable: scrubbing back to 3s of a 90s run
-     * keeps the full 90s axis, so the staircase stays where it was instead of stretching out
-     * again as the slider moves.
-     */
     private void setTimeAxis(double upto) {
         if (upto > timeAxisUpper) {
             timeAxisUpper = Math.max(MIN_TIME_AXIS_SPAN, upto * TIME_AXIS_HEADROOM);
@@ -296,11 +223,6 @@ class ConvergenceChartView extends BorderPane {
         xAxis.setTickUnit(timeAxisUpper / 5.0);
     }
 
-    /**
-     * Maps a cursor position to a time on the axis and hovers whichever frame was actually
-     * sampled closest to it, so the tiles read out real memory/CPU/branch numbers rather than
-     * anything interpolated.
-     */
     private void hoverAtScenePosition(double sceneX, double sceneY) {
         List<Frame> frames = history.frames();
         if (frames.isEmpty() || getCenter() != chart) {
@@ -309,39 +231,82 @@ class ConvergenceChartView extends BorderPane {
         Point2D local = xAxis.sceneToLocal(sceneX, sceneY);
         double time = xAxis.getValueForDisplay(local.getX()).doubleValue();
 
-        // Past the leading edge - which is most of the plot thanks to the axis headroom -
-        // there's nothing sampled to show, so treat the cursor as off the data rather than
-        // snapping it back onto the last frame.
+        double earliest = earliestRealTime();
         double latest = frames.get(frames.size() - 1).timeSeconds();
-        if (time < 0 || time > Math.min(latest, currentUpto.getAsDouble())) {
-            clearHover();
+
+        // Clamp to the data range — crosshair stops at the edges rather than clearing.
+        double clampedTime = Math.max(earliest, Math.min(latest, time));
+
+        hoverTimeSeconds = clampedTime;
+        Frame frame = frameAt(clampedTime);
+        onHover.accept(frame);
+        updateHoverMarker(clampedTime, frame);
+    }
+
+    private void updateHoverMarker(double dataTime, Frame frame) {
+        moveCrosshairTo(hoverTimeSeconds);
+
+        if (showingProgress) {
+            hoverDotSeries.getData().setAll(
+                    List.of(new XYChart.Data<>(hoverTimeSeconds, frame.branchesExplored())));
             return;
         }
 
-        int index = nearestFrame(time);
-        if (index == hoverIndex) {
+        int makespan = makespanAt(dataTime);
+        if (makespan == Integer.MAX_VALUE) {
+            hoverDotSeries.getData().clear();
             return;
         }
-        hoverIndex = index;
-        Frame frame = frames.get(index);
-        onHover.accept(frame);
-        updateHoverMarker(frame);
+        hoverDotSeries.getData().setAll(
+                List.of(new XYChart.Data<>(hoverTimeSeconds, makespan)));
     }
 
     /**
-     * Re-places the markers after a chart rebuild has shifted the axes underneath them: onto the
-     * hovered frame if there is one, otherwise back onto the leading edge.
+     * The earliest time the cursor should be able to rest on. Frame 0 is the synthetic t=0
+     * anchor MetricsHistory adds for interpolation, not a real sample. On the convergence view
+     * the actual first plotted point is an Improvement, which can land before the first sampled
+     * Frame - so that, not frames.get(1), is the correct left bound there.
      */
-    private void redrawMarkers() {
+    private double earliestRealTime() {
+        if (!showingProgress && !history.improvements().isEmpty()) {
+            return history.improvements().get(0).timeSeconds();
+        }
         List<Frame> frames = history.frames();
-        if (hoverIndex >= 0 && hoverIndex < frames.size()) {
-            updateHoverMarker(frames.get(hoverIndex));
-        } else if (!frames.isEmpty()) {
+        return frames.size() > 1 ? frames.get(1).timeSeconds() : frames.get(0).timeSeconds();
+    }
+
+    private int makespanAt(double timeSeconds) {
+        int last = Integer.MAX_VALUE;
+        for (Improvement improvement : history.improvements()) {
+            if (improvement.timeSeconds() > timeSeconds) break;
+            last = improvement.makespan();
+        }
+        if (last == Integer.MAX_VALUE) {
+            // No improvement has landed by this time. Fall back to a frame's own recorded best,
+            // for the case where a sample was taken before its Improvement event finished
+            // propagating - but never look past timeSeconds, or the hover dot would show a value
+            // that hasn't actually happened yet at that point in time.
+            for (Frame frame : history.frames()) {
+                if (frame.timeSeconds() > timeSeconds) break;
+                if (frame.bestMakespan() != Integer.MAX_VALUE) {
+                    last = frame.bestMakespan();
+                }
+            }
+        }
+        return last;
+    }
+
+    private void redrawMarkers() {
+        if (hoverTimeSeconds >= 0 && !history.isEmpty()) {
+            double dataTime = Math.max(earliestRealTime(), hoverTimeSeconds);
+            Frame frame = frameAt(dataTime);
+            onHover.accept(frame);
+            updateHoverMarker(dataTime, frame);
+        } else if (!history.frames().isEmpty()) {
             moveCrosshairTo(currentUpto.getAsDouble());
         }
     }
 
-    /** Stands the crosshair up at one time, spanning the plot's full height. */
     private void moveCrosshairTo(double timeSeconds) {
         crosshairSeries.getData().setAll(List.of(
                 new XYChart.Data<>(timeSeconds, yAxis.getLowerBound()),
@@ -349,40 +314,49 @@ class ConvergenceChartView extends BorderPane {
     }
 
     /**
-     * Draws the crosshair and the dot where the hovered frame sits. The dot sits on whatever's
-     * actually plotted - the staircase in convergence mode, the branch curve in progress mode.
+     * Synthesizes a frame at exactly {@code timeSeconds} by linearly interpolating between the two
+     * real samples that bracket it, so the hover readout changes continuously as the cursor moves
+    * instead of snapping from one recorded sample straight to the next. {@code bestMakespan} is
+    * deliberately left un-interpolated - it is a step function that only actually changes at a
+    * real improvement, so blending it would show a makespan that was never true at that instant.
+    * CPU is taken from the earlier real sample because it should never be synthesized between
+    * measurements.
      */
-    private void updateHoverMarker(Frame frame) {
-        double time = frame.timeSeconds();
-        moveCrosshairTo(time);
-
-        if (!showingProgress && frame.bestMakespan() == Integer.MAX_VALUE) {
-            // Nothing had been found yet at this point, so there's no line for the dot to sit on.
-            hoverDotSeries.getData().clear();
-            return;
+    private Frame frameAt(double timeSeconds) {
+        List<Frame> frames = history.frames();
+        int insertion = insertionPoint(timeSeconds);
+        if (insertion <= 0) {
+            return frames.get(0);
         }
-        Number value = showingProgress ? frame.branchesExplored() : frame.bestMakespan();
-        hoverDotSeries.getData().setAll(List.of(new XYChart.Data<>(time, value)));
+        if (insertion >= frames.size()) {
+            return frames.get(frames.size() - 1);
+        }
+        Frame before = frames.get(insertion - 1);
+        Frame after = frames.get(insertion);
+        double span = after.timeSeconds() - before.timeSeconds();
+        double fraction = span <= 0 ? 0 : (timeSeconds - before.timeSeconds()) / span;
+        fraction = Math.max(0, Math.min(1, fraction));
+
+        return new Frame(
+            timeSeconds,
+            Math.round(before.branchesExplored() + (after.branchesExplored() - before.branchesExplored()) * fraction),
+            Math.round(before.branchesPruned() + (after.branchesPruned() - before.branchesPruned()) * fraction),
+            Math.round(before.usedMemoryBytes() + (after.usedMemoryBytes() - before.usedMemoryBytes()) * fraction),
+            before.cpuPercent(),
+            makespanAt(timeSeconds));
     }
 
-    /** Binary search for whichever frame's sample time is closest to the given time. */
-    private int nearestFrame(double timeSeconds) {
+    /** First index whose sample time is >= timeSeconds, or frames.size() if none is. */
+    private int insertionPoint(double timeSeconds) {
         List<Frame> frames = history.frames();
         int low = 0;
-        int high = frames.size() - 1;
+        int high = frames.size();
         while (low < high) {
             int mid = (low + high) >>> 1;
             if (frames.get(mid).timeSeconds() < timeSeconds) {
                 low = mid + 1;
             } else {
                 high = mid;
-            }
-        }
-        if (low > 0) {
-            double after = frames.get(low).timeSeconds() - timeSeconds;
-            double before = timeSeconds - frames.get(low - 1).timeSeconds();
-            if (before < after) {
-                return low - 1;
             }
         }
         return low;
