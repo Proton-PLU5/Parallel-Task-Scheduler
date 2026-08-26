@@ -1,0 +1,36 @@
+digraph "fifteen" {
+	Alpha	 [Weight=2];
+	Bravo	 [Weight=4];
+	Charlie	 [Weight=3];
+	Alpha -> Bravo	 [Weight=2];
+	Alpha -> Charlie	 [Weight=3];
+	Delta	 [Weight=5];
+	Echo	 [Weight=4];
+	Bravo -> Delta	 [Weight=2];
+	Charlie -> Delta	 [Weight=1];
+	Charlie -> Echo	 [Weight=3];
+	Foxtrot	 [Weight=6];
+	Golf	 [Weight=3];
+	Delta -> Foxtrot	 [Weight=2];
+	Echo -> Foxtrot	 [Weight=1];
+	Echo -> Golf	 [Weight=2];
+	Hotel	 [Weight=5];
+	India	 [Weight=4];
+	Foxtrot -> Hotel	 [Weight=2];
+	Golf -> Hotel	 [Weight=1];
+	Golf -> India	 [Weight=3];
+	Juliet	 [Weight=3];
+	Kilo	 [Weight=6];
+	Hotel -> Juliet	 [Weight=2];
+	India -> Juliet	 [Weight=1];
+	India -> Kilo	 [Weight=2];
+	Lima	 [Weight=4];
+	Juliet -> Lima	 [Weight=2];
+	Kilo -> Lima	 [Weight=1];
+	Mike	 [Weight=5];
+	Lima -> Mike	 [Weight=2];
+	November	 [Weight=3];
+	Mike -> November	 [Weight=1];
+	Oscar	 [Weight=2];
+	November -> Oscar	 [Weight=1];
+}
