@@ -283,6 +283,9 @@ public class MainWindowController {
         currentPanel.setTranslateY(0);
         enforceMinScaleAndClamp();
         scheduleEnforceMinScaleAndClamp();
+
+        // Fixes gantt chart snapping problem
+        Platform.runLater(this::enforceMinScaleAndClamp);
     }
 
     @FXML
