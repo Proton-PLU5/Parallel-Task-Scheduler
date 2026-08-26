@@ -16,6 +16,7 @@ import se306.scheduler.graph.TaskGraph;
  */
 public abstract class AbstractSearch extends RecursiveAction {
 
+    // Branch Counter for tracking branch metrics
     protected BranchCounter branchCounter;
 
     // Local state context
@@ -27,8 +28,13 @@ public abstract class AbstractSearch extends RecursiveAction {
     // The algorithm utils class which holds many of pruning method implementations.
     public AlgorithmUtils utils;
 
+    // Set by compute(): whether this task's root node was cut by the lower bound the moment it was
+    // entered.
+    private boolean prunedAtEntry;
+
     /**
      * The primary constructor
+     *
      * @param ctx the shared state context object
      */
     protected AbstractSearch(SearchContext ctx) {
@@ -69,24 +75,24 @@ public abstract class AbstractSearch extends RecursiveAction {
     /**
      * The template search method featuring the common shared bound/termination checks between the sequential
      * implementation and the parallel implementation. The actual branching strategy is not shared.
+     *
+     * @return true when this node was cut by the lower bound on entry, meaning the branch that
+     *         reached it was a dead end and its caller should count it as pruned.
      */
-    protected void search() {
+    protected boolean search() {
         TaskGraph graph = ctx.getGraph();
 
+        // This checks whether we reached the leaf node.
         if (localContext.scheduledCount == graph.taskCount()) {
-            // A leaf: this is the only place a new best can be found, and so the only place the
-            // GUI is told about one. Everything else the panel shows is sampled on a timer.
+            // If so then, compare and update the best schedule.
             ctx.compareAndSetBestSchedule(localContext);
-            branchCounter.countExplored();
-            return;
+            return false;
         }
 
-        branchCounter.countExplored();
-
         if (utils.lowerBound() >= ctx.getBest()) {
-            // Lower bound pruning
-            branchCounter.countPruned();
-            return;
+            // Lower bound pruning: nothing below this node can beat the best, so the branch that
+            // reached it is a dead end.
+            return true;
         }
 
         // Visit ready tasks in descending bottom-level order: critical-path tasks first, so the
@@ -96,6 +102,7 @@ public abstract class AbstractSearch extends RecursiveAction {
                 exploreProcessors(task);
             }
         }
+        return false;
     }
 
     /**
@@ -106,19 +113,39 @@ public abstract class AbstractSearch extends RecursiveAction {
      * @param toProcessor The ending processor (exclusive)
      */
     protected final void exploreSequentially(int task, int fromProcessor, int toProcessor) {
+        // Loop through all the possible processors we can schedule on
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
             boolean isEmpty = localContext.taskCountOn[processor] == 0;
 
+            // Each iteration generates exactly one branch, and classifies it exactly once below.
             if (utils.isPermutationDuplicate(task, processor)) {
                 branchCounter.countPruned();
             } else {
-                int est = utils.earliestStart(task, processor);
-                if (est + ctx.getBottomLevel(task) >= ctx.getBest()) {
-                    branchCounter.countPruned(); // See isDoomed: this branch can't beat the best.
+
+                // If the earliest start time and the bottom level of the task is greater than
+                // or equal to the best schedule found so far, then this branch cannot beat
+                // the best schedule and can be pruned.
+                if (utils.isDoomed(task, processor)) {
+                    branchCounter.countPruned();
                 } else {
-                    localContext.place(task, processor, est, ctx);
-                    search();
+                    int earliestStartTime = utils.earliestStart(task, processor);
+
+                    // Create a new log entry for the current state.
+                    localContext.place(task, processor, earliestStartTime, ctx);
+
+                    // Search the subtree rooted at this placement and check if it leads to a dead end.
+                    boolean deadEnd = search();
+
+                    // Undo and restore the previous state from the log
                     localContext.undo(ctx);
+
+                    // The check above only bounds on the earliest start; the stronger bound at the
+                    // child's entry may still have cut it, in which case this branch was pruned too.
+                    if (deadEnd) {
+                        branchCounter.countPruned();
+                    } else {
+                        branchCounter.countExplored();
+                    }
                 }
             }
 
@@ -128,13 +155,21 @@ public abstract class AbstractSearch extends RecursiveAction {
 
     /**
      * For a ready task, explore the candidate processors
+     * Implemented by subclasses that extend this class.
      */
     protected abstract void exploreProcessors(int task);
+
+    /**
+     * Whether this task's root node was cut by the bound on entry. Valid once join returns.
+     */
+    public final boolean wasPrunedAtEntry() {
+        return prunedAtEntry;
+    }
 
     @Override
     protected void compute() {
         try {
-            search();
+            prunedAtEntry = search();
         } finally {
             branchCounter.flush();
         }

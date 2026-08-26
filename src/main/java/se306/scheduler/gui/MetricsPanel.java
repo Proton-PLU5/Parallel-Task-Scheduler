@@ -295,10 +295,11 @@ public class MetricsPanel extends BorderPane {
 
         long pruned = frame.branchesPruned();
         long explored = frame.branchesExplored();
-        double fraction = explored == 0 ? 0 : pruned / (double) (pruned + explored);
+        long generated = pruned + explored;
+        double fraction = generated == 0 ? 0 : pruned / (double) generated;
         meterFraction.set(fraction);
         meterValue.setText(String.format("%s of %s · %.1f%%",
-                formatCount(pruned), formatCount(pruned + explored), fraction * 100));
+                formatCount(pruned), formatCount(generated), fraction * 100));
     }
 
     /** The latest time currently drawn, which is what the hover is allowed to range over. */

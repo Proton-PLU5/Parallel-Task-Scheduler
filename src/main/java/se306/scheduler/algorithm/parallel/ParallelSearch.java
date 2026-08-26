@@ -62,6 +62,14 @@ public class ParallelSearch extends AbstractSearch {
             // Waits for the completion of the forked child tasks,
             // ensuring that all parallel explorations are finished before proceeding.
             child.join();
+
+            // Classify the branch this fork took, now that the child's entry bound check has run.
+            // The child counts everything below itself; the branch into it is the parent's to count.
+            if (child.wasPrunedAtEntry()) {
+                branchCounter.countPruned();
+            } else {
+                branchCounter.countExplored();
+            }
         }
     }
 }

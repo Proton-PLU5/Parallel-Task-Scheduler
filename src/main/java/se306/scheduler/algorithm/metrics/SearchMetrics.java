@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class SearchMetrics {
 
+    // A record that stores some primitive data types regarding the search stats.
+    // A "snapshot" of the stats.
     public record Snapshot(
             long branchesExplored,
             long branchesPruned,
@@ -17,9 +19,10 @@ public class SearchMetrics {
             long usedMemoryBytes,
             double cpuLoadPercent) {}
 
+    // Search Start Time is set to be the moment the search metrics class get created.
     private final long searchStartTime = System.nanoTime();
 
-    // Used to get Device related metrics.
+    // Used to get Device related metrics like CPU and Memory
     private final Runtime runtime = Runtime.getRuntime();
     private final OperatingSystemMXBean osBean =
             (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
@@ -30,8 +33,8 @@ public class SearchMetrics {
     private final LongAdder branchesPruned = new LongAdder();
 
     /**
-     * Adds a batch of explored branches. Searches accumulate locally and flush in batches rather
-     * than incrementing per node.
+     * Adds a batch of explored branches - branches the search took, rather than nodes it entered.
+     * Searches accumulate locally and flush in batches rather than incrementing one at a time.
      *
      * @param count the number of explored branches to add to the tally.
      */
@@ -40,7 +43,9 @@ public class SearchMetrics {
     }
 
     /**
-     * Adds a batch of pruned branches.
+     * Adds a batch of pruned branches. Every branch the search generates is counted here or in
+     * {@link #addBranchesExplored} and never both, so the two sum to the total generated.
+     *
      * @param count The number of branches pruned to add to the tally.
      */
     public void addBranchesPruned(long count) {

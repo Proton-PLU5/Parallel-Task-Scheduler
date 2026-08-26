@@ -19,11 +19,20 @@ public class BranchCounter {
     }
 
     /**
-     * Increments the number of branches that is explored locally,
-     * and flushing it to the metrics once it passes the threshold.
+     * Records one branch that was taken: the placement was made and the resulting node was not
+     * cut by the bound on entry. Flushes to the shared metrics once the local batch fills up.
      */
     public void countExplored() { if (++localExplored >= COUNTER_FLUSH_INTERVAL) flush(); }
-    public void countPruned() { localPruned++; }
+
+    /**
+     * Records one branch that was cut, whether before the placement was made or by the stronger
+     * bound check at the child node's entry.
+     *
+     * <p>This flushes on the same interval as {@link #countExplored}. It has to: when pruning is
+     * working well there are many cut branches per taken one, so a counter that only flushed on
+     * the explored path would be the fastest-moving number and the least often published.
+     */
+    public void countPruned() { if (++localPruned >= COUNTER_FLUSH_INTERVAL) flush(); }
 
     /**
      * Pushes this search's locally accumulated branch counts to the shared metrics.

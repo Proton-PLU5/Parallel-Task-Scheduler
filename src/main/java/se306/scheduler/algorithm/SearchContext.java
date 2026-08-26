@@ -60,7 +60,8 @@ public class SearchContext {
      * This is used to prune the search space.
      *
      * @param graph The task graph
-     * @return An array where bottomLevel[i] is the length of the longest path from task i to the end task, including the weight of task i itself.
+     * @return An array where bottomLevel[i] is the length of the longest path from task i to the end task,
+     *         including the weight of task i itself.
      */
     private int[] computeBottomLevel(TaskGraph graph) {
         int n = graph.taskCount();
