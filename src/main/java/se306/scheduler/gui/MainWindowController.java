@@ -22,7 +22,6 @@ public class MainWindowController {
     @FXML private StackPane chartContainer;
 
     private GanttChartPanel ganttChart;
-    private SearchTreePanel searchTree;
     private MetricsPanel metricsPanel;
     private Pane currentPanel;
     private boolean autoFitEnabled = true;
@@ -32,13 +31,11 @@ public class MainWindowController {
     @FXML
     public void initialize() {
         ganttChart = new GanttChartPanel(0, 0);
-        searchTree = new SearchTreePanel();
         metricsPanel = new MetricsPanel();
 
         // Keep visualization panel sizes from participating in parent layout.
         // This prevents very large graphs from expanding the window/viewport size.
         ganttChart.setManaged(false);
-        searchTree.setManaged(false);
 
         configureViewportClip();
         configureDefaultPanel();
@@ -267,11 +264,6 @@ public class MainWindowController {
         switchToPanel(ganttChart);
     }
 
-    @FXML
-    private void showSearchTree() {
-        switchToPanel(searchTree);
-    }
-
     private void switchToPanel(StackPane panel) {
         currentPanel = panel;
         chartContainer.getChildren().setAll(currentPanel);
@@ -297,10 +289,6 @@ public class MainWindowController {
 
     public GanttChartPanel getGanttChart() {
         return ganttChart;
-    }
-
-    public SearchTreePanel getSearchTree() {
-        return searchTree;
     }
 
     public MetricsPanel getMetricsPanel() {
