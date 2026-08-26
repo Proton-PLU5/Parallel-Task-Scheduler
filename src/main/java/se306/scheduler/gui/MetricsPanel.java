@@ -21,31 +21,48 @@ import se306.scheduler.gui.MetricsHistory.Frame;
 /**
  * Shows the progress of a running search, and replays it once it finishes.
  *
- * <p>Two independent streams feed this panel, and keeping them separate is the whole point of the
+ * <p>
+ * Two independent streams feed this panel, and keeping them separate is the
+ * whole point of the
  * design - see {@link MetricsHistory}:
  *
  * <ul>
- *   <li><b>Improvements</b> are events. One arrives, via {@link SearchListener}, each time the
- *       search reaches a leaf that beats the current best. They are sparse - typically a handful
- *       per run - and they are the only thing the algorithm pushes.
- *   <li><b>Frames</b> are samples. One is taken every {@link #SAMPLE_INTERVAL} by
- *       {@code MainWindow}, carrying branch counts, memory and CPU. They say nothing about when
- *       the search improved, only how it was doing at that moment.
+ * <li><b>Improvements</b> are events. One arrives, via {@link SearchListener},
+ * each time the
+ * search reaches a leaf that beats the current best. They are sparse -
+ * typically a handful
+ * per run - and they are the only thing the algorithm pushes.
+ * <li><b>Frames</b> are samples. One is taken every {@link #SAMPLE_INTERVAL} by
+ * {@code MainWindow}, carrying branch counts, memory and CPU. They say nothing
+ * about when
+ * the search improved, only how it was doing at that moment.
  * </ul>
  *
- * <p>Both are keyed on seconds since the search started, which is what makes scrubbing and
- * hovering coherent: showing time t means showing the frame at t alongside the improvement
- * staircase clipped to t. Crucially, improvements are never drawn as if they were samples - the
- * line between two improvements is flat, because that is what actually happened, and the last one
- * extends flat to the current time rather than sloping towards a point that does not exist yet.
+ * <p>
+ * Both are keyed on seconds since the search started, which is what makes
+ * scrubbing and
+ * hovering coherent: showing time t means showing the frame at t alongside the
+ * improvement
+ * staircase clipped to t. Crucially, improvements are never drawn as if they
+ * were samples - the
+ * line between two improvements is flat, because that is what actually
+ * happened, and the last one
+ * extends flat to the current time rather than sloping towards a point that
+ * does not exist yet.
  *
- * <p>This panel is the orchestrator: it owns the layout and the stat tiles, and delegates the
- * convergence chart (with its hover/crosshair behaviour) to {@link ConvergenceChartView} and the
+ * <p>
+ * This panel is the orchestrator: it owns the layout and the stat tiles, and
+ * delegates the
+ * convergence chart (with its hover/crosshair behaviour) to
+ * {@link ConvergenceChartView} and the
  * play/pause/speed scrubbing to {@link PlaybackController}.
  */
 public class MetricsPanel extends BorderPane {
 
-    /** How often the search status is sampled. {@code MainWindow} drives its timer from this. */
+    /**
+     * How often the search status is sampled. {@code MainWindow} drives its timer
+     * from this.
+     */
     public static final Duration SAMPLE_INTERVAL = Duration.seconds(0.1);
 
     private static final double METER_HEIGHT = 10;
@@ -56,7 +73,10 @@ public class MetricsPanel extends BorderPane {
 
     private boolean complete;
 
-    /** The frame the tiles show when nothing is hovered, and the anchor the chart is drawn to. */
+    /**
+     * The frame the tiles show when nothing is hovered, and the anchor the chart is
+     * drawn to.
+     */
     private int displayedIndex;
 
     private final Label statusPill = new Label("● Running");
@@ -133,8 +153,10 @@ public class MetricsPanel extends BorderPane {
                         "Higher percentages indicate that the algorithm is effectively eliminating unpromising branches, leading to faster convergence.");
         explanationLabel.setWrapText(true);
         explanationLabel.getStyleClass().add("metrics-meter-explanation");
-        // When the row runs out of width, the HBox shrinks its children; pinning the value to its
-        // preferred size makes the section label give way instead, so the trailing "%" is never
+        // When the row runs out of width, the HBox shrinks its children; pinning the
+        // value to its
+        // preferred size makes the section label give way instead, so the trailing "%"
+        // is never
         // clipped off the readout.
         meterValue.setMinWidth(Region.USE_PREF_SIZE);
 
@@ -157,8 +179,10 @@ public class MetricsPanel extends BorderPane {
     }
 
     /**
-     * Full comma-grouped digits below a million; "12.3 M" / "4.6 B" / "1.2 T" above, so the huge
-     * branch counts a long run produces stay readable in the tiles, the meter, and the chart axis.
+     * Full comma-grouped digits below a million; "12.3 M" / "4.6 B" / "1.2 T"
+     * above, so the huge
+     * branch counts a long run produces stay readable in the tiles, the meter, and
+     * the chart axis.
      */
     static String formatCount(long value) {
         if (value < 1_000_000L) {
@@ -180,7 +204,10 @@ public class MetricsPanel extends BorderPane {
         return new VBox(4, label, valueLabel);
     }
 
-    /** Clears any previous run's history so the panel can be reused for a fresh search. */
+    /**
+     * Clears any previous run's history so the panel can be reused for a fresh
+     * search.
+     */
     public void beginRun() {
         playbackController.reset();
         history.reset(SAMPLE_INTERVAL);
@@ -206,11 +233,16 @@ public class MetricsPanel extends BorderPane {
         }
     }
 
-    /** Records one sampled reading of the search status. Must be called on the FX thread. */
+    /**
+     * Records one sampled reading of the search status. Must be called on the FX
+     * thread.
+     */
     public void recordFrame(double elapsedSeconds, SearchMetrics.Snapshot snapshot) {
         if (history.recordFrame(elapsedSeconds, snapshot)) {
-            // Every index just moved underneath the cursor and the slider, so drop the hover
-            // rather than let it keep reporting a different moment than the one being pointed at.
+            // Every index just moved underneath the cursor and the slider, so drop the
+            // hover
+            // rather than let it keep reporting a different moment than the one being
+            // pointed at.
             chartView.clearHover();
         }
         refreshLive();
@@ -234,7 +266,10 @@ public class MetricsPanel extends BorderPane {
         displayFrame(history.frameCount() - 1);
     }
 
-    /** While the search runs the view pins itself to the newest frame and the slider stays locked. */
+    /**
+     * While the search runs the view pins itself to the newest frame and the slider
+     * stays locked.
+     */
     private void refreshLive() {
         if (complete) {
             return;
@@ -247,8 +282,10 @@ public class MetricsPanel extends BorderPane {
         int last = history.frameCount() - 1;
         timeSlider.setMax(last);
         if ((int) Math.round(timeSlider.getValue()) == last) {
-            // Already pinned to the newest frame, so setValue would be a no-op and the listener
-            // would not fire - which is the case when an improvement arrives between samples.
+            // Already pinned to the newest frame, so setValue would be a no-op and the
+            // listener
+            // would not fire - which is the case when an improvement arrives between
+            // samples.
             displayFrame(last);
         } else {
             timeSlider.setValue(last);
@@ -262,13 +299,16 @@ public class MetricsPanel extends BorderPane {
         displayedIndex = Math.max(0, Math.min(index, history.frameCount() - 1));
         Frame frame = history.frame(displayedIndex);
 
-        // While live, an improvement newer than the last sample should show up immediately rather
-        // than waiting for the next tick. During replay the frame's own time is the whole truth.
+        // While live, an improvement newer than the last sample should show up
+        // immediately rather
+        // than waiting for the next tick. During replay the frame's own time is the
+        // whole truth.
         double upto = complete ? frame.timeSeconds() : Math.max(frame.timeSeconds(), history.lastImprovementTime());
 
         chartView.render(upto);
 
-        // A live refresh must not yank the tiles out from under a cursor parked on an earlier
+        // A live refresh must not yank the tiles out from under a cursor parked on an
+        // earlier
         // moment: while hovering, the hovered frame keeps ownership of the readout.
         chartView.hoveredFrame().ifPresentOrElse(
                 hovered -> showStats(hovered, true),
@@ -301,7 +341,10 @@ public class MetricsPanel extends BorderPane {
                 formatCount(pruned), formatCount(pruned + explored), fraction * 100));
     }
 
-    /** The latest time currently drawn, which is what the hover is allowed to range over. */
+    /**
+     * The latest time currently drawn, which is what the hover is allowed to range
+     * over.
+     */
     private double currentUpto() {
         if (history.isEmpty()) {
             return history.lastImprovementTime();
