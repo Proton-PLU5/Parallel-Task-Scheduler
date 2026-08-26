@@ -6,17 +6,10 @@ import java.lang.management.ManagementFactory;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * Live counters for the search, plus an on-demand snapshot of process-level statistics.
- *
- * <p>Nothing is stored here: this class holds no history at all. The GUI samples it on a timer
- * (see {@code MainWindow}) and keeps whatever history it needs on its own side, so a headless run
- * pays for nothing beyond two {@link LongAdder}s. The expensive parts - reading process CPU load
- * and heap usage - only ever happen inside {@link #snapshot()}, which the search itself never
- * calls, so they can never land on a worker thread or inside a lock.
+ * The data structure used to keep track of search metrics for the checkpoints.
  */
 public class SearchMetrics {
 
-    /** A point-in-time reading of search progress, built on demand and never retained here. */
     public record Snapshot(
             long branchesExplored,
             long branchesPruned,
@@ -26,6 +19,7 @@ public class SearchMetrics {
 
     private final long searchStartTime = System.nanoTime();
 
+    // Used to get Device related metrics.
     private final Runtime runtime = Runtime.getRuntime();
     private final OperatingSystemMXBean osBean =
             (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
@@ -37,13 +31,18 @@ public class SearchMetrics {
 
     /**
      * Adds a batch of explored branches. Searches accumulate locally and flush in batches rather
-     * than incrementing per node - see {@code AbstractSearch#countExplored()}.
+     * than incrementing per node.
+     *
+     * @param count the number of explored branches to add to the tally.
      */
     public void addBranchesExplored(long count) {
         branchesExplored.add(count);
     }
 
-    /** Adds a batch of pruned branches. Flushed alongside {@link #addBranchesExplored(long)}. */
+    /**
+     * Adds a batch of pruned branches.
+     * @param count The number of branches pruned to add to the tally.
+     */
     public void addBranchesPruned(long count) {
         branchesPruned.add(count);
     }
@@ -51,12 +50,18 @@ public class SearchMetrics {
     public long getBranchesExplored() { return branchesExplored.longValue(); }
     public long getBranchesPruned() { return branchesPruned.longValue(); }
 
-    /** Seconds since this context (and therefore the search) was created. */
+    /**
+     * Seconds since the search was created.
+     */
     public double elapsedSeconds() {
         return (System.nanoTime() - searchStartTime) / 1_000_000_000.0;
     }
 
-    /** Builds a reading of the current state. Called from the GUI thread, roughly once a second. */
+    /**
+     * Builds a reading of the current state. Called from the GUI thread, roughly once a second.
+     *
+     * @return returns a snapshot populated with the values.
+     */
     public Snapshot snapshot() {
         return new Snapshot(
                 branchesExplored.longValue(),
