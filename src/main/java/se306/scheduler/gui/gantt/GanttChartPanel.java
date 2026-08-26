@@ -20,7 +20,6 @@ import javafx.geometry.VPos;
 
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.MainWindow;
-import se306.scheduler.gui.MainWindowController;
 import se306.scheduler.schedule.Schedule;
 
 /**
@@ -33,17 +32,14 @@ public class GanttChartPanel extends StackPane {
     private static final int PIXELS_PER_UNIT = 30;
     private static final int COLUMN_WIDTH = 72;
     private static final int LEFT_MARGIN = 90;
-    private static final int TOP_MARGIN = 110;
-    private static final int LEGEND_Y = 22;
+    private static final int TOP_MARGIN = 80;
     private static final int AXIS_TITLE_FONT_SIZE = 18;
     private static final int BODY_FONT_SIZE = 13;
     private static final int TASK_TITLE_FONT_SIZE = 14;
     private static final int TASK_SUBTITLE_FONT_SIZE = 11;
-    private static final int LEGEND_FONT_SIZE = 13;
     private static final int PROCESSOR_TITLE_X = 10;
     private static final int TASK_CORNER_RADIUS = 10;
     private static final int BAR_VERTICAL_PADDING = 7;
-    private static final int LEGEND_SWATCH_SIZE = 12;
 
     // Matches the palette used by main-window.css / MetricsPanel, plus a
     // job-family palette for coloring tasks by job instead of by processor.
@@ -94,17 +90,14 @@ public class GanttChartPanel extends StackPane {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-        Map<String, Color> familyColors = new LinkedHashMap<>();
-        List<String> legendOrder = new ArrayList<>();
-        boolean hasStartOrEnd = assignFamilyColors(graph, schedule, familyColors, legendOrder);
+        Map<String, Color> taskColors = assignTaskColors(graph, schedule);
 
-        drawLegend(gc, hasStartOrEnd, legendOrder, familyColors);
         drawAxisTitles(gc, schedule);
         drawRowBanding(gc, schedule);
         drawProcessorLabels(gc, schedule);
         drawRowDividers(gc, schedule);
         drawTimeAxis(gc, schedule);
-        drawTaskBars(gc, graph, schedule, familyColors);
+        drawTaskBars(gc, graph, schedule, taskColors);
     }
 
     /** Resizes the canvas (and this panel, via the bound pref-size properties) to exactly fit
@@ -125,48 +118,23 @@ public class GanttChartPanel extends StackPane {
     }
 
     /**
-     * Assigns each job family (task names sharing a letter prefix, e.g. "a1"/"a2") its own color,
-     * in order of first appearance, filling {@code familyColors} and {@code legendOrder}.
-     * "start"/"end" pseudo-tasks share a neutral gray instead of taking a job color.
-     *
-     * @return true if the schedule contains a "start" or "end" pseudo-task
+     * Assigns each task its own color from {@link #FAMILY_MID}, cycling through the palette in task
+     * order. "start"/"end" pseudo-tasks get a neutral gray instead of a palette color.
      */
-    private boolean assignFamilyColors(
-            TaskGraph graph, Schedule schedule, Map<String, Color> familyColors, List<String> legendOrder) {
-        boolean hasStartOrEnd = false;
+    private Map<String, Color> assignTaskColors(TaskGraph graph, Schedule schedule) {
+        Map<String, Color> taskColors = new LinkedHashMap<>();
         int paletteIndex = 0;
 
         for (int t = 0; t < schedule.taskCount(); t++) {
             String name = graph.name(t);
             if (isStartOrEnd(name)) {
-                hasStartOrEnd = true;
+                taskColors.put(name, NEUTRAL);
                 continue;
             }
-            String key = familyKey(name);
-            if (!familyColors.containsKey(key)) {
-                familyColors.put(key, Color.web(FAMILY_MID[paletteIndex % FAMILY_MID.length]));
-                legendOrder.add(key);
-                paletteIndex++;
-            }
+            taskColors.put(name, Color.web(FAMILY_MID[paletteIndex % FAMILY_MID.length]));
+            paletteIndex++;
         }
-        return hasStartOrEnd;
-    }
-
-    /** Draws the legend across the top: a "Start / end" swatch (if present), then one swatch per job family. */
-    private void drawLegend(
-            GraphicsContext gc, boolean hasStartOrEnd, List<String> legendOrder, Map<String, Color> familyColors) {
-        Font legendFont = Font.font(null, FontWeight.BOLD, LEGEND_FONT_SIZE);
-        gc.setFont(legendFont);
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.setTextBaseline(VPos.CENTER);
-
-        double legendX = LEFT_MARGIN;
-        if (hasStartOrEnd) {
-            legendX = drawLegendItem(gc, legendX, LEGEND_Y, legendFont, NEUTRAL, "Start / end");
-        }
-        for (String key : legendOrder) {
-            legendX = drawLegendItem(gc, legendX, LEGEND_Y, legendFont, familyColors.get(key), "Job " + key);
-        }
+        return taskColors;
     }
 
     /** Draws the chart axis titles. */
@@ -271,7 +239,7 @@ public class GanttChartPanel extends StackPane {
     /** Draws one filled, outlined, rounded rectangle per task, positioned by its start time (x)
      *  and assigned processor (y), sized by its duration, labelled with its name and time range. */
     private void drawTaskBars(
-            GraphicsContext gc, TaskGraph graph, Schedule schedule, Map<String, Color> familyColors) {
+            GraphicsContext gc, TaskGraph graph, Schedule schedule, Map<String, Color> taskColors) {
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.CENTER);
         Font titleFont = Font.font(null, FontWeight.BOLD, TASK_TITLE_FONT_SIZE);
@@ -284,22 +252,12 @@ public class GanttChartPanel extends StackPane {
             int duration = graph.weight(t);
             int end = start + duration;
 
-            // Position from the start time.
-            double x = LEFT_MARGIN
-                    + start * PIXELS_PER_UNIT;
-
-            // Position from the processor.
-            double y = TOP_MARGIN
-                    + proc * COLUMN_WIDTH
-                    + BAR_VERTICAL_PADDING;
-
-            // Width from the task duration.
+            double x = LEFT_MARGIN + start * PIXELS_PER_UNIT;
+            double y = TOP_MARGIN + proc * COLUMN_WIDTH + BAR_VERTICAL_PADDING;
             double w = duration * PIXELS_PER_UNIT;
-
-            // Match the processor row height.
             double h = COLUMN_WIDTH - 2 * BAR_VERTICAL_PADDING;
 
-            Color barColor = isStartOrEnd(name) ? NEUTRAL : familyColors.get(familyKey(name));
+            Color barColor = taskColors.get(name);
 
             gc.setFill(barColor);
             gc.fillRoundRect(x, y, w, h, TASK_CORNER_RADIUS, TASK_CORNER_RADIUS);
@@ -321,23 +279,5 @@ public class GanttChartPanel extends StackPane {
     private static String familyKey(String name) {
         String stripped = TRAILING_DIGITS.matcher(name).replaceAll("");
         return stripped.isEmpty() ? name : stripped;
-    }
-
-    private static double drawLegendItem(
-            GraphicsContext gc, double x, double y, Font font, Color color, String label) {
-        double radius = LEGEND_SWATCH_SIZE / 3.0;
-        gc.setFill(color);
-        gc.fillRoundRect(x, y - LEGEND_SWATCH_SIZE / 2.0, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE, radius, radius);
-
-        gc.setFill(TEXT_PRIMARY);
-        gc.fillText(label, x + LEGEND_SWATCH_SIZE + 6, y);
-
-        return x + LEGEND_SWATCH_SIZE + 6 + textWidth(label, font) + 22;
-    }
-
-    private static double textWidth(String text, Font font) {
-        Text measurer = new Text(text);
-        measurer.setFont(font);
-        return measurer.getLayoutBounds().getWidth();
     }
 }
