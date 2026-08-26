@@ -1,11 +1,7 @@
 package se306.scheduler.gui.gantt;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
-
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -14,10 +10,8 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.geometry.VPos;
-
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.MainWindow;
 import se306.scheduler.schedule.Schedule;
@@ -54,8 +48,6 @@ public class GanttChartPanel extends StackPane {
     private static final String[] FAMILY_MID = {
             "#534AB7", "#0F6E56", "#993C1D", "#993556", "#854F0B", "#185FA5"
     };
-
-    private static final Pattern TRAILING_DIGITS = Pattern.compile("\\d+$");
 
     private final Canvas canvas;
 
@@ -274,10 +266,5 @@ public class GanttChartPanel extends StackPane {
 
     private static boolean isStartOrEnd(String name) {
         return name.equalsIgnoreCase("start") || name.equalsIgnoreCase("end");
-    }
-
-    private static String familyKey(String name) {
-        String stripped = TRAILING_DIGITS.matcher(name).replaceAll("");
-        return stripped.isEmpty() ? name : stripped;
     }
 }
