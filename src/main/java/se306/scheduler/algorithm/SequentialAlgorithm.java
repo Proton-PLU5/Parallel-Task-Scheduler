@@ -4,9 +4,6 @@ import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-
 public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
 
     public SequentialAlgorithm(TaskGraph graph, int numProcessors) {

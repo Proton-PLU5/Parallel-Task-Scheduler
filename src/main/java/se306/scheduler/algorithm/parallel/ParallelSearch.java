@@ -30,13 +30,13 @@ public class ParallelSearch extends AbstractSearch {
         // Processors at or past this bound are empty duplicates of the first empty one. The
         // break inside exploreSequentially cannot catch them here, because every call below
         // covers a single processor - so the range is bounded up front instead.
-        int limit = processorLimit();
+        int limit = utils.processorLimit();
 
         // A list to store the forked tasks
         List<ParallelSearch> forked = new ArrayList<>(limit - 1);
 
         for (int processor = 1; processor < limit; processor++) {
-            if (isPermutationDuplicate(task, processor) || isDoomed(task, processor)) {
+            if (utils.isPermutationDuplicate(task, processor) || utils.isDoomed(task, processor)) {
                 // Checked before forking: skipping here saves constructing the child
                 // and cloning its state arrays, not just the subtree walk.
                 branchCounter.countPruned();

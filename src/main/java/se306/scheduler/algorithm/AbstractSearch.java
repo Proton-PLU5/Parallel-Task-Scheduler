@@ -24,6 +24,7 @@ public abstract class AbstractSearch extends RecursiveAction {
     // Shared state context
     protected final SearchContext ctx;
 
+    // The algorithm utils class which holds many of pruning method implementations.
     public AlgorithmUtils utils;
 
     /**
@@ -56,6 +57,11 @@ public abstract class AbstractSearch extends RecursiveAction {
     }
 
 
+    /**
+     * Place a task into the log
+     * @param task the task to be placed
+     * @param processor the processor it should be placed on
+     */
     public void place(int task, int processor) {
         localContext.place(task, processor, utils.earliestStart(task, processor), ctx);
     }
@@ -92,40 +98,6 @@ public abstract class AbstractSearch extends RecursiveAction {
         }
     }
 
-
-
-    /**
-     * Processor symmetry: empty processors are interchangeable, so scheduling a task onto the
-     * second empty processor produces a schedule identical to the first up to relabeling. Only
-     * the first empty processor is worth exploring, and every processor after it can be skipped.
-     *
-     * @return the exclusive upper bound on processors worth exploring for the current state.
-     */
-    protected final int processorLimit() {
-        int numProcessors = ctx.getNumProcessors();
-
-        for (int processor = 0; processor < numProcessors; processor++) {
-            if (localContext.taskCountOn[processor] == 0) return processor + 1;
-        }
-        return numProcessors;
-    }
-
-    /**
-     * Decision-order duplicate pruning: if the previous placement and this one touch different
-     * processors and have no dependency between them, the two decisions commute — the sibling
-     * branch that places them in the opposite order reaches a bit-for-bit identical state.
-     * Only the order with the lower-index task first is kept (the canonical order), so the two
-     * orders can never prune each other and every reachable state survives in exactly one branch.
-     *
-     * @return true when placing this task here recreates a state another branch already covers.
-     */
-    protected final boolean isPermutationDuplicate(int task, int processor) {
-        return localContext.lastPlaced != -1
-                && task < localContext.lastPlaced
-                && processor != localContext.processorOf[localContext.lastPlaced]
-                && !ctx.getGraph().hasEdge(localContext.lastPlaced, task);
-    }
-
     /**
      * Explores processors sequentially for a given task in-place.
      *
@@ -137,7 +109,7 @@ public abstract class AbstractSearch extends RecursiveAction {
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
             boolean isEmpty = localContext.taskCountOn[processor] == 0;
 
-            if (isPermutationDuplicate(task, processor)) {
+            if (utils.isPermutationDuplicate(task, processor)) {
                 branchCounter.countPruned();
             } else {
                 int est = utils.earliestStart(task, processor);
@@ -152,17 +124,6 @@ public abstract class AbstractSearch extends RecursiveAction {
 
             if (isEmpty) break; // All remaining processors would produce the same schedule so break.
         }
-    }
-
-    /**
-     * Bound check done before placing: with this task starting at its earliest possible time
-     * here, at least bottomLevel more time must pass, so the branch cannot beat the current
-     * best. Catching this before skips the log push, the child indegree
-     * updates, and the undo — and in the parallel search, cloning a whole child for a branch
-     * whose first bound check would kill it.
-     */
-    protected final boolean isDoomed(int task, int processor) {
-        return utils.earliestStart(task, processor) + ctx.getBottomLevel(task) >= ctx.getBest();
     }
 
     /**
