@@ -58,7 +58,7 @@ class DotParserTest {
     @BeforeEach
     void parseExampleDot() throws IOException {
         // Maven sets basedir to the project root; the fallback covers running from an IDE.
-        Path exampleDot = Path.of(System.getProperty("basedir", ".")).resolve("example.dot");
+        Path exampleDot = Path.of(System.getProperty("basedir", ".")).resolve("testcases/example.dot");
         assertTrue(Files.exists(exampleDot),
                 "example.dot not found at " + exampleDot.toAbsolutePath());
 
@@ -72,7 +72,7 @@ class DotParserTest {
 
     @BeforeEach
     void parseTest2Dot() throws IOException {
-        Path test2Dot = Path.of(System.getProperty("basedir", ".")).resolve("test2.dot");
+        Path test2Dot = Path.of(System.getProperty("basedir", ".")).resolve("testcases/test2.dot");
         assertTrue(Files.exists(test2Dot),
                 "test2.dot not found at " + test2Dot.toAbsolutePath());
 

@@ -20,13 +20,13 @@ class TaskGraphPrinterTest {
     @Test
     @DisplayName("prints example.dot")
     void printExample() throws IOException {
-        print(parse("example.dot"));
+        print(parse("testcases/example.dot"));
     }
 
     @Test
     @DisplayName("prints test2.dot")
     void printTest2() throws IOException {
-        print(parse("test2.dot"));
+        print(parse("testcases/test2.dot"));
     }
 
     private static TaskGraph parse(String fileName) throws IOException {
