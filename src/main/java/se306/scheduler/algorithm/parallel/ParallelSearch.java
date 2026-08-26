@@ -39,7 +39,7 @@ public class ParallelSearch extends AbstractSearch {
             if (isPermutationDuplicate(task, processor) || isDoomed(task, processor)) {
                 // Checked before forking: skipping here saves constructing the child
                 // and cloning its state arrays, not just the subtree walk.
-                countPruned();
+                branchCounter.countPruned();
                 continue;
             }
 

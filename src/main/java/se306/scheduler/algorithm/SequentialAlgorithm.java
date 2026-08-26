@@ -30,7 +30,7 @@ public class SequentialAlgorithm extends AbstractSearch implements Algorithm {
         } finally {
             // The sequential search drives search() directly rather than going through
             // compute(), so it has to flush its trailing batch of branch counts itself.
-            flushCounters();
+            branchCounter.flush();
         }
         return ctx.getBestSchedule();
     }
