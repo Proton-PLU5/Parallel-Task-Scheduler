@@ -141,12 +141,3 @@ re-stretching as the slider moves.
   outside the best-schedule lock precisely so a slow paint cannot stall the search.
 - `MetricsPanel.recordImprovement` and `recordFrame` must be called on the FX thread, which
   `MainWindow` guarantees.
-
-## Extending it
-
-`SearchTreePanel` is a placeholder awaiting a real search-tree visualisation, and
-`MainWindow.onNewBestSchedule` has the marked spot where it would be driven from. When adding to
-the GUI, keep the two-channel rule: the search pushes only genuine events (a new best), and
-anything continuous is sampled by the timer on the FX thread. There are no automated tests for
-the panels themselves; the listener path from the algorithm's side is covered by
-[`AlgorithmListenerTest`](../src/test/java/se306/scheduler/algorithm/AlgorithmListenerTest.java).
