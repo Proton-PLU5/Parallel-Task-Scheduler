@@ -154,14 +154,10 @@ public class SearchContext {
      * Update the best schedule to use the new startTimes and processorOfs.
      *
      * @param makespan The makespan of the new schedule
-     * @param startTime The startTime of the new schedule
-     * @param processorOf the processorOf of the new schedule
+     * @param startTime The start times of the tasks
+     * @param processorOf The processor assignments of the tasks
      */
-    public void compareAndSetBestSchedule(
-            int makespan,
-            int[] startTime,
-            int[] processorOf) {
-
+    public void compareAndSetBestSchedule(int makespan, int[] startTime, int[] processorOf) {
         // Fast, lock-free bail-out: `best` is volatile, so this lets the overwhelming majority
         // of calls - schedules that don't improve on the best found so far - skip both the
         // allocation below and the synchronized block entirely.
@@ -189,6 +185,14 @@ public class SearchContext {
         }
     }
 
+    public void compareAndSetBestSchedule(LocalContext context) {
+        int makespan = context.makespan;
+        int[] startTime = context.startTime;
+        int[] processorOf = context.processorOf;
+
+        compareAndSetBestSchedule(makespan, startTime, processorOf);
+    }
+
     public void compareAndSetBestSchedule(Schedule improved) {
         synchronized (this) {
             if (improved.makespan() >= this.best) {
@@ -206,8 +210,10 @@ public class SearchContext {
     public TaskGraph getGraph() { return graph; }
     public int getNumProcessors() { return numProcessors; }
     public int getBottomLevel(int task) { return bottomLevel[task]; }
-    /** All tasks by descending bottom level. Read-only — never modify the returned array. */
+
+    /** All tasks by descending bottom level. Read-only */
     public int[] getTaskPriorityOrder() { return taskPriorityOrder; }
+
     public int getBest() { return best; }
     public Schedule getBestSchedule() { return bestSchedule; }
     public SearchMetrics getMetrics() { return metrics; }

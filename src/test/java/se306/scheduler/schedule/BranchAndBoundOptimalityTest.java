@@ -1,8 +1,10 @@
 package se306.scheduler.schedule;
 
+import se306.scheduler.algorithm.AbstractSearch;
 import se306.scheduler.algorithm.SearchContext;
 import se306.scheduler.algorithm.SequentialAlgorithm;
 import se306.scheduler.algorithm.parallel.ParallelAlgorithm;
+import se306.scheduler.algorithm.parallel.ParallelSearch;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 
@@ -812,17 +814,17 @@ class BranchAndBoundOptimalityTest {
                 // remaining subproblem for bruteForceOptimalCompletion to evaluate.
                 int depth = 0;
                 while (depth < n - 1) {
-                    int task = search.nextReadyTask();
+                    int task = search.utils.nextReadyTask();
                     if (task == -1) break;   // no ready task (disconnected graph corner case)
 
                     int proc = rnd.nextInt(procs);
                     search.place(task, proc);
                     depth++;
 
-                    int bound = search.lowerBound();
-                    int[] partialProcOf   = search.processorOf.clone();
-                    int[] partialStartTime = search.startTime.clone();
-                    int[] partialFreeAt   = search.processorFreeAt.clone();
+                    int bound = search.utils.lowerBound();
+                    int[] partialProcOf   = search.localContext.processorOf.clone();
+                    int[] partialStartTime = search.localContext.startTime.clone();
+                    int[] partialFreeAt   = search.localContext.processorFreeAt.clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);
@@ -838,7 +840,7 @@ class BranchAndBoundOptimalityTest {
 
                 // Fully unwind the walk so the search object is cleanly reset.
                 for (int i = 0; i < depth; i++) {
-                    search.undo();
+                    search.localContext.undo(search.getContext());
                 }
             }
         }
@@ -879,10 +881,10 @@ class BranchAndBoundOptimalityTest {
                 for (int proc = 0; proc < procs; proc++) {
                     search.place(firstTask, proc);
 
-                    int bound = search.lowerBound();
-                    int[] partialProcOf = search.processorOf.clone();
-                    int[] partialStartTime = search.startTime.clone();
-                    int[] partialFreeAt = search.processorFreeAt.clone();
+                    int bound = search.utils.lowerBound();
+                    int[] partialProcOf = search.localContext.processorOf.clone();
+                    int[] partialStartTime = search.localContext.startTime.clone();
+                    int[] partialFreeAt = search.localContext.processorFreeAt.clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);
@@ -893,7 +895,7 @@ class BranchAndBoundOptimalityTest {
                                     + " — lower bound " + bound
                                     + " exceeds the true optimal completion " + optimalCompletion);
 
-                    search.undo();
+                    search.localContext.undo(search.getContext());
                 }
             }
         }

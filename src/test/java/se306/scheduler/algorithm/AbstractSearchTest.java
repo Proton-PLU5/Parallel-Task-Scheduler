@@ -33,15 +33,15 @@ class AbstractSearchTest {
         SequentialAlgorithm search = new SequentialAlgorithm(graph, 1);
 
         // Before anything is placed, only A is ready — B is still waiting on A.
-        assertEquals(a, search.nextReadyTask());
+        assertEquals(a, search.utils.nextReadyTask());
 
         // Placing A unblocks B.
         search.place(a, 0);
-        assertEquals(b, search.nextReadyTask());
+        assertEquals(b, search.utils.nextReadyTask());
 
         // With both tasks placed there is nothing left to schedule.
         search.place(b, 0);
-        assertEquals(-1, search.nextReadyTask());
+        assertEquals(-1, search.utils.nextReadyTask());
     }
 
     @Test
@@ -57,7 +57,7 @@ class AbstractSearchTest {
 
         SequentialAlgorithm search = new SequentialAlgorithm(graph, 1);
 
-        assertEquals(graph.indexOf("A"), search.nextReadyTask());
+        assertEquals(graph.indexOf("A"), search.utils.nextReadyTask());
     }
 
     @Test
@@ -71,11 +71,11 @@ class AbstractSearchTest {
         // Schedule both tasks, then backtrack one step: B should be the ready task again.
         search.place(a, 0);
         search.place(b, 0);
-        search.undo();
-        assertEquals(b, search.nextReadyTask());
+        search.localContext.undo(search.getContext());
+        assertEquals(b, search.utils.nextReadyTask());
 
         // Backtrack the other step too: we are back at the start, with only A ready.
-        search.undo();
-        assertEquals(a, search.nextReadyTask());
+        search.localContext.undo(search.getContext());
+        assertEquals(a, search.utils.nextReadyTask());
     }
 }
