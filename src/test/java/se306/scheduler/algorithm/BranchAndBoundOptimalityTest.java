@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link ParallelSearch}) against an independent brute-force solver to make sure it actually finds
  * the optimal schedule, not just a valid one.
  *
- * <p>{@link AbstractSearch#nextReadyTask()} always picks the lowest-index ready task, so the search
+ * <p>{@link AlgorithmUtils#nextReadyTask()} always picks the lowest-index ready task, so the search
  * only branches on processor choice for a fixed task order. The brute force here enumerates all
  * topological orders too, so it isn't relying on the same assumption.
  */
