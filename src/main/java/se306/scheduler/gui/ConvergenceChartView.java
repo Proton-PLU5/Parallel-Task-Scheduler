@@ -232,9 +232,8 @@ class ConvergenceChartView extends BorderPane {
         double time = xAxis.getValueForDisplay(local.getX()).doubleValue();
 
         double earliest = earliestRealTime();
-        double latest = frames.get(frames.size() - 1).timeSeconds();
+        double latest = currentUpto.getAsDouble();   // was: frames.get(frames.size() - 1).timeSeconds()
 
-        // Clamp to the data range — crosshair stops at the edges rather than clearing.
         double clampedTime = Math.max(earliest, Math.min(latest, time));
 
         hoverTimeSeconds = clampedTime;
