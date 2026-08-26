@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -16,7 +16,8 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
-import se306.scheduler.gui.MetricsHistory.Frame;
+import se306.scheduler.gui.SearchListener;
+import se306.scheduler.gui.metrics.MetricsHistory.Frame;
 
 /**
  * Shows the progress of a running search, and replays it once it finishes.

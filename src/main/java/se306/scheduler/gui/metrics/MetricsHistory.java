@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.util.Duration;
 import se306.scheduler.algorithm.metrics.SearchMetrics;

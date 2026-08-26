@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.metrics;
 
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -8,8 +8,8 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.util.StringConverter;
-import se306.scheduler.gui.MetricsHistory.Frame;
-import se306.scheduler.gui.MetricsHistory.Improvement;
+import se306.scheduler.gui.metrics.MetricsHistory.Frame;
+import se306.scheduler.gui.metrics.MetricsHistory.Improvement;
 
 import java.util.ArrayList;
 import java.util.List;

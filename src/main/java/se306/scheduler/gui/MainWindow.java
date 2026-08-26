@@ -8,8 +8,11 @@ import javafx.util.Duration;
 import se306.scheduler.algorithm.SearchContext;
 import se306.scheduler.algorithm.metrics.SearchMetrics;
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.gui.gantt.GanttChartPanel;
+import se306.scheduler.gui.metrics.MetricsPanel;
 import se306.scheduler.schedule.Schedule;
 
+/** Monitors and samples data from the SearchContext and calls the GanttChart and MetricsPanel to update with.*/
 public class MainWindow implements SearchListener {
 
     /**

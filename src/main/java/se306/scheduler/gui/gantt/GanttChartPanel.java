@@ -1,4 +1,4 @@
-package se306.scheduler.gui;
+package se306.scheduler.gui.gantt;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,6 +19,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.geometry.VPos;
 
 import se306.scheduler.graph.TaskGraph;
+import se306.scheduler.gui.MainWindow;
+import se306.scheduler.gui.MainWindowController;
 import se306.scheduler.schedule.Schedule;
 
 /**
@@ -27,7 +29,7 @@ import se306.scheduler.schedule.Schedule;
  * the left side.
  *
  * <p>Wraps a {@link Canvas} rather than being one directly, so its preferred size can be bound to
- * the canvas's actual (dynamically resized) size — see the constructor — which is what lets
+ * the canvas's actual (dynamically resized) size (see the constructor) which is what lets
  * {@link MainWindowController}'s auto-fit and clamping logic treat it like any other sized node
  * despite the canvas underneath being manually resized on every {@link #renderSchedule}.
  *
@@ -98,11 +100,31 @@ public class GanttChartPanel extends StackPane {
      * graph mutation, this must not be called directly from a background search thread.
      */
     public void renderSchedule(TaskGraph graph, Schedule schedule) {
+        resizeCanvasToFit(schedule);
+
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        Map<String, Color> familyColors = new LinkedHashMap<>();
+        List<String> legendOrder = new ArrayList<>();
+        boolean hasStartOrEnd = assignFamilyColors(graph, schedule, familyColors, legendOrder);
+
+        drawLegend(gc, hasStartOrEnd, legendOrder, familyColors);
+        drawAxisTitles(gc, schedule);
+        drawRowBanding(gc, schedule);
+        drawProcessorLabels(gc, schedule);
+        drawRowDividers(gc, schedule);
+        drawTimeAxis(gc, schedule);
+        drawTaskBars(gc, graph, schedule, familyColors);
+    }
+
+    /** Resizes the canvas (and this panel, via the bound pref-size properties) to exactly fit
+     *  {@code schedule}'s time axis width and processor row height. */
+    private void resizeCanvasToFit(Schedule schedule) {
         int numProcessors = schedule.numProcessors();
         int maxTime = schedule.makespan();
 
         double requiredWidth = LEFT_MARGIN + maxTime * PIXELS_PER_UNIT + 20;
-
         double requiredHeight = TOP_MARGIN + numProcessors * COLUMN_WIDTH;
 
         canvas.setWidth(requiredWidth);
@@ -111,22 +133,17 @@ public class GanttChartPanel extends StackPane {
         // Resize immediately to fix top left snapping problem
         resize(requiredWidth, requiredHeight);
         requestLayout();
+    }
 
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-
-        gc.clearRect(
-                0,
-                0,
-                canvas.getWidth(),
-                canvas.getHeight());
-
-        double rowRight = requiredWidth - 10;
-
-        // Assign each job family (task names sharing a letter prefix, e.g. "a1"/"a2")
-        // its own color, in order of first appearance. "start"/"end" pseudo-tasks
-        // share a neutral gray instead of taking a job color.
-        Map<String, Color> familyColors = new LinkedHashMap<>();
-        List<String> legendOrder = new ArrayList<>();
+    /**
+     * Assigns each job family (task names sharing a letter prefix, e.g. "a1"/"a2") its own color,
+     * in order of first appearance, filling {@code familyColors} and {@code legendOrder}.
+     * "start"/"end" pseudo-tasks share a neutral gray instead of taking a job color.
+     *
+     * @return true if the schedule contains a "start" or "end" pseudo-task
+     */
+    private boolean assignFamilyColors(
+            TaskGraph graph, Schedule schedule, Map<String, Color> familyColors, List<String> legendOrder) {
         boolean hasStartOrEnd = false;
         int paletteIndex = 0;
 
@@ -143,8 +160,12 @@ public class GanttChartPanel extends StackPane {
                 paletteIndex++;
             }
         }
+        return hasStartOrEnd;
+    }
 
-        // Legend
+    /** Draws the legend across the top: a "Start / end" swatch (if present), then one swatch per job family. */
+    private void drawLegend(
+            GraphicsContext gc, boolean hasStartOrEnd, List<String> legendOrder, Map<String, Color> familyColors) {
         Font legendFont = Font.font(null, FontWeight.BOLD, LEGEND_FONT_SIZE);
         gc.setFont(legendFont);
         gc.setTextAlign(TextAlignment.LEFT);
@@ -157,8 +178,13 @@ public class GanttChartPanel extends StackPane {
         for (String key : legendOrder) {
             legendX = drawLegendItem(gc, legendX, LEGEND_Y, legendFont, familyColors.get(key), "Job " + key);
         }
+    }
 
-        // Axis titles
+    /** Draws the "Time" title above the chart and the vertical "Processors" title down the left margin. */
+    private void drawAxisTitles(GraphicsContext gc, Schedule schedule) {
+        int maxTime = schedule.makespan();
+        int numProcessors = schedule.numProcessors();
+
         gc.setFill(TEXT_PRIMARY);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
@@ -174,18 +200,26 @@ public class GanttChartPanel extends StackPane {
         gc.rotate(-90);
         gc.fillText("Processors", 0, 0);
         gc.restore();
+    }
 
-        // Row banding- alternate rows get a faint tint so they stay easy to scan.
+    /** Alternate rows get a faint tint so they stay easy to scan. */
+    private void drawRowBanding(GraphicsContext gc, Schedule schedule) {
+        int numProcessors = schedule.numProcessors();
+        double rowRight = canvas.getWidth() - 10;
+
         for (int p = 1; p < numProcessors; p += 2) {
             double rowTop = TOP_MARGIN + p * COLUMN_WIDTH;
             gc.setFill(ROW_BAND);
             gc.fillRect(LEFT_MARGIN, rowTop, rowRight - LEFT_MARGIN, COLUMN_WIDTH);
         }
+    }
+
+    /** Draws the "P1", "P2", ... label for each processor row, vertically centred on that row. */
+    private void drawProcessorLabels(GraphicsContext gc, Schedule schedule) {
+        int numProcessors = schedule.numProcessors();
 
         // Use a smaller body font for tick labels and task labels.
         gc.setFont(Font.font(null, FontWeight.NORMAL, BODY_FONT_SIZE));
-
-        // Processor labels
         gc.setFill(TEXT_SECONDARY);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
@@ -200,17 +234,27 @@ public class GanttChartPanel extends StackPane {
                     LEFT_MARGIN / 2.0,
                     y);
         }
+    }
 
-        // Row divider hairlines
+    /** Draws the horizontal hairline separating each processor row from the next. */
+    private void drawRowDividers(GraphicsContext gc, Schedule schedule) {
+        int numProcessors = schedule.numProcessors();
+        double rowRight = canvas.getWidth() - 10;
+
         gc.setStroke(ROW_DIVIDER);
         gc.setLineWidth(1.0);
         for (int p = 0; p <= numProcessors; p++) {
             double y = TOP_MARGIN + p * COLUMN_WIDTH;
             gc.strokeLine(LEFT_MARGIN, y, rowRight, y);
         }
+    }
 
-        // Time axis: a vertical gridline and a numeric label every 2 time units, spanning the
-        // full height of the processor rows so it's easy to read a task's start/end time off it.
+    /** Draws a vertical gridline and a numeric label every 2 time units, spanning the full height
+     *  of the processor rows so it's easy to read a task's start/end time off it. */
+    private void drawTimeAxis(GraphicsContext gc, Schedule schedule) {
+        int maxTime = schedule.makespan();
+        int numProcessors = schedule.numProcessors();
+
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setStroke(GRID_LINE);
         gc.setLineWidth(1.0);
@@ -233,9 +277,12 @@ public class GanttChartPanel extends StackPane {
                     x,
                     TOP_MARGIN - 15);
         }
+    }
 
-        // Tasks: one filled, outlined rectangle per task, positioned by its start time (x) and
-        // assigned processor (y), sized by its duration, labelled with its name.
+    /** Draws one filled, outlined, rounded rectangle per task, positioned by its start time (x)
+     *  and assigned processor (y), sized by its duration, labelled with its name and time range. */
+    private void drawTaskBars(
+            GraphicsContext gc, TaskGraph graph, Schedule schedule, Map<String, Color> familyColors) {
         gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.CENTER);
         Font titleFont = Font.font(null, FontWeight.BOLD, TASK_TITLE_FONT_SIZE);

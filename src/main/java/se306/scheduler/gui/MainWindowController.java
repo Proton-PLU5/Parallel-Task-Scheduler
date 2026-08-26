@@ -11,6 +11,8 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.ZoomEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
+import se306.scheduler.gui.gantt.GanttChartPanel;
+import se306.scheduler.gui.metrics.MetricsPanel;
 
 /**
  * Controller for {@code MainWindow.fxml} — owns the visualisation viewport (the {@code chartContainer}
