@@ -16,68 +16,38 @@ import se306.scheduler.graph.TaskGraph;
  */
 public abstract class AbstractSearch extends RecursiveAction {
 
-    protected record LogEntry(int task, int processor, int previousFreeAt, int previousMakespan, int previousBound,
-                              int previousLastPlaced) {}
+    // Branch Counter for tracking branch metrics
+    protected BranchCounter branchCounter;
 
-    /**
-     * How many branches a search accumulates locally before pushing them to the shared counters.
-     * Every node in the tree counts, so touching a shared LongAdder per node was by far the most
-     * expensive thing the metrics did; batching drops that traffic by three orders of magnitude
-     * while leaving the once-a-second GUI reading accurate to within one batch per live thread.
-     */
-    private static final int COUNTER_FLUSH_INTERVAL = 1024;
+    // Local state context
+    public LocalContext localContext;
 
     // Shared state context
     protected final SearchContext ctx;
 
-    public int[] processorOf;
-    public int[] startTime;
-    public int[] processorFreeAt;
-    protected int[] indegreeRemaining;
-    protected int[] taskCountOn;
+    // The algorithm utils class which holds many of pruning method implementations.
+    public AlgorithmUtils utils;
 
-    protected int scheduledCount;
-    protected int makespan;
-
-    // Critical Path Bound
-    protected int currentBound;
-
-    // The task placed most recently on this DFS path, or -1 at the root. 
-    protected int lastPlaced = -1;
-
-    // Total idle time committed so far across all processors.
-    protected int idleTime;
-
-    protected Deque<LogEntry> log;
-
-    // Thread-confined branch counters, flushed to the shared metrics in batches. Deliberately not
-    // copied by the child constructor: a forked child starts its own batch from zero, and the
-    // parent keeps ownership of everything it has counted so far.
-    private long localExplored;
-    private long localPruned;
+    // Set by compute(): whether this task's root node was cut by the lower bound the moment it was
+    // entered.
+    private boolean prunedAtEntry;
 
     /**
      * The primary constructor
+     *
      * @param ctx the shared state context object
      */
     protected AbstractSearch(SearchContext ctx) {
         this.ctx = ctx;
-        int n = ctx.getGraph().taskCount();
+        int taskCount = ctx.getGraph().taskCount();
 
-        this.processorOf = new int[n];
-        this.startTime = new int[n];
-        this.processorFreeAt = new int[ctx.getNumProcessors()];
-        this.indegreeRemaining = new int[n];
-        this.taskCountOn = new int[ctx.getNumProcessors()];
+        // Create a local context to manage all local state variables.
+        this.localContext = new LocalContext(taskCount, ctx.getNumProcessors(), ctx.getGraph());
 
-        // Populate initial values
-        Arrays.fill(processorOf, -1);
-        Arrays.fill(startTime, -1);
-        for (int t = 0; t < n; t++) {
-            indegreeRemaining[t] = ctx.getGraph().parentCount(t);
-        }
+        // Create a branch counter for counting branches explored.
+        this.branchCounter = new BranchCounter(ctx.getMetrics());
 
-        this.log = new ArrayDeque<>();
+        this.utils = new AlgorithmUtils(localContext, ctx);
     }
 
     /**
@@ -87,223 +57,52 @@ public abstract class AbstractSearch extends RecursiveAction {
      */
     protected AbstractSearch(AbstractSearch parent) {
         this.ctx = parent.ctx;
-        this.processorOf = parent.processorOf.clone();
-        this.startTime = parent.startTime.clone();
-        this.processorFreeAt = parent.processorFreeAt.clone();
-        this.indegreeRemaining = parent.indegreeRemaining.clone();
-        this.taskCountOn = parent.taskCountOn.clone();
-
-        this.scheduledCount = parent.scheduledCount;
-        this.makespan = parent.makespan;
-        this.currentBound = parent.currentBound;
-        this.lastPlaced = parent.lastPlaced;
-        this.idleTime = parent.idleTime;
-
-        // Create a fresh log, this clone is a new branch, so it never needs to undo
-        // state it inherited from its parent.
-        this.log = new ArrayDeque<>();
+        this.branchCounter = new BranchCounter(ctx.getMetrics());
+        this.localContext = new LocalContext(parent.localContext);
+        this.utils = new AlgorithmUtils(localContext, ctx);
     }
 
-    public int lowerBound() {
-        return Math.max(makespan, Math.max(currentBound, ctx.getLoadBound(idleTime)));
-    }
 
     /**
-     * Determines the next ready task whose dependencies have already been scheduled.
-     *
-     * TODO: Optimize this step so its better than O(N)?
-     *
-     * @return an integer representing the task.
-     */
-    public int nextReadyTask() {
-        for (int task = 0; task < ctx.getGraph().taskCount(); task++) {
-            if (processorOf[task] == -1 && indegreeRemaining[task] == 0) return task;
-        }
-        return -1;
-    }
-
-    /**
-     * Places a task into the partial schedule by populating it with the new timestamps after the
-     * task has been added, as well as creates a log entry to undo the scheduling
-     * when we are backtracking.
-     *
-     * @param task The task to be placed
-     * @param processor The processor the task should be scheduled onto.
+     * Place a task into the log
+     * @param task the task to be placed
+     * @param processor the processor it should be placed on
      */
     public void place(int task, int processor) {
-        place(task, processor, earliestStart(task, processor));
+        localContext.place(task, processor, utils.earliestStart(task, processor), ctx);
     }
-
-    /**
-     * The earliest time the task could start on the processor given the current partial
-     * schedule: no earlier than the processor is free, and no earlier than every predecessor
-     * has finished (plus comm cost if the predecessor ran on a different processor).
-     */
-    public int earliestStart(int task, int processor) {
-        int ready = processorFreeAt[processor];
-        TaskGraph graph = ctx.getGraph();
-
-        for (int k = graph.parentStart(task); k < graph.parentEnd(task); k++) {
-            int pred = graph.parentAt(k);
-            int predFinish = startTime[pred] + graph.weight(pred);
-            int comm = (processorOf[pred] == processor) ? 0 : graph.commCost(pred, task);
-            ready = Math.max(ready, predFinish + comm);
-        }
-        return ready;
-    }
-
-    /** Places with an already-computed start time, so callers that bound-check on the
-     *  earliest start (see {@link #exploreSequentially}) don't recompute it. */
-    private void place(int task, int processor, int ready) {
-        TaskGraph graph = ctx.getGraph();
-
-        // Log the previous state for backtracking
-        log.push(new LogEntry(task, processor, processorFreeAt[processor], makespan, currentBound, lastPlaced));
-
-        // The gap between the processor falling free and this task starting is committed
-        // idle time: appends can never reach back before processorFreeAt to fill it.
-        idleTime += ready - processorFreeAt[processor];
-
-        // Update the state with this task scheduled
-        processorOf[task] = processor;
-        startTime[task] = ready;
-        processorFreeAt[processor] = ready + graph.weight(task);
-        taskCountOn[processor]++;
-        makespan = Math.max(makespan, processorFreeAt[processor]);
-
-        // Update the current bound
-        currentBound = Math.max(currentBound, ready + ctx.getBottomLevel(task));
-
-        lastPlaced = task;
-        scheduledCount++;
-
-        // Decrease indegree of children
-        for (int k = graph.childStart(task); k < graph.childEnd(task); k++) {
-            int child = graph.childAt(k);
-            indegreeRemaining[child]--;
-        }
-    }
-
-    /**
-     * Undoes the last scheduling operation by popping the log entry and restoring the previous state.
-     * This is used for backtracking in the DFS search.
-     */
-    public void undo() {
-        LogEntry entry = log.pop();
-
-        // Reclaim the idle gap this placement committed (its start minus when the processor fell free).
-        idleTime -= startTime[entry.task()] - entry.previousFreeAt();
-
-        startTime[entry.task()] = -1;
-        processorOf[entry.task()] = -1;
-        processorFreeAt[entry.processor()] = entry.previousFreeAt();
-        makespan = entry.previousMakespan();
-        taskCountOn[entry.processor()]--;
-
-        // Restore the previous current bound
-        currentBound = entry.previousBound();
-
-        lastPlaced = entry.previousLastPlaced();
-        scheduledCount--;
-
-        TaskGraph graph = ctx.getGraph();
-
-        for (int k = graph.childStart(entry.task()); k < graph.childEnd(entry.task()); k++) {
-            indegreeRemaining[graph.childAt(k)]++;
-        }
-    }
-
 
     /**
      * The template search method featuring the common shared bound/termination checks between the sequential
      * implementation and the parallel implementation. The actual branching strategy is not shared.
+     *
+     * @return true when this node was cut by the lower bound on entry, meaning the branch that
+     *         reached it was a dead end and its caller should count it as pruned.
      */
-    protected void search() {
+    protected boolean search() {
         TaskGraph graph = ctx.getGraph();
 
-        if (scheduledCount == graph.taskCount()) {
-            // A leaf: this is the only place a new best can be found, and so the only place the
-            // GUI is told about one. Everything else the panel shows is sampled on a timer.
-            ctx.compareAndSetBestSchedule(makespan, startTime, processorOf);
-            countExplored();
-            return;
+        // This checks whether we reached the leaf node.
+        if (localContext.scheduledCount == graph.taskCount()) {
+            // If so then, compare and update the best schedule.
+            ctx.compareAndSetBestSchedule(localContext);
+            return false;
         }
 
-        countExplored();
-
-        if (lowerBound() >= ctx.getBest()) {
-            // Lower bound pruning
-            localPruned++;
-            return;
+        if (utils.lowerBound() >= ctx.getBest()) {
+            // Lower bound pruning: nothing below this node can beat the best, so the branch that
+            // reached it is a dead end.
+            return true;
         }
 
         // Visit ready tasks in descending bottom-level order: critical-path tasks first, so the
         // DFS reaches near-optimal schedules early and later branches prune against a tight best.
         for (int task : ctx.getTaskPriorityOrder()) {
-            if (processorOf[task] == -1 && indegreeRemaining[task] == 0) {
+            if (localContext.processorOf[task] == -1 && localContext.indegreeRemaining[task] == 0) {
                 exploreProcessors(task);
             }
         }
-    }
-
-    /** Counts one explored branch locally, flushing the batch to the shared counters when full. */
-    private void countExplored() {
-        if (++localExplored >= COUNTER_FLUSH_INTERVAL) {
-            flushCounters();
-        }
-    }
-
-    /**
-     * Pushes this search's locally accumulated branch counts to the shared metrics. Called
-     * automatically when a batch fills, and once more when the search finishes so the trailing
-     * partial batch is never lost.
-     */
-    public final void flushCounters() {
-        if (localExplored != 0) {
-            ctx.getMetrics().addBranchesExplored(localExplored);
-            localExplored = 0;
-        }
-        if (localPruned != 0) {
-            ctx.getMetrics().addBranchesPruned(localPruned);
-            localPruned = 0;
-        }
-    }
-
-    /**
-     * Processor symmetry: empty processors are interchangeable, so scheduling a task onto the
-     * second empty processor produces a schedule identical to the first up to relabeling. Only
-     * the first empty processor is worth exploring, and every processor after it can be skipped.
-     *
-     * @return the exclusive upper bound on processors worth exploring for the current state.
-     */
-    protected final int processorLimit() {
-        int numProcessors = ctx.getNumProcessors();
-
-        for (int processor = 0; processor < numProcessors; processor++) {
-            if (taskCountOn[processor] == 0) return processor + 1;
-        }
-        return numProcessors;
-    }
-
-    /**
-     * Decision-order duplicate pruning: if the previous placement and this one touch different
-     * processors and have no dependency between them, the two decisions commute — the sibling
-     * branch that places them in the opposite order reaches a bit-for-bit identical state.
-     * Only the order with the lower-index task first is kept (the canonical order), so the two
-     * orders can never prune each other and every reachable state survives in exactly one branch.
-     *
-     * @return true when placing this task here recreates a state another branch already covers.
-     */
-    protected final boolean isPermutationDuplicate(int task, int processor) {
-        return lastPlaced != -1
-                && task < lastPlaced
-                && processor != processorOf[lastPlaced]
-                && !ctx.getGraph().hasEdge(lastPlaced, task);
-    }
-
-    /** Counts one pruned branch locally; flushed alongside the explored count. */
-    protected final void countPruned() {
-        localPruned++;
+        return false;
     }
 
     /**
@@ -314,19 +113,39 @@ public abstract class AbstractSearch extends RecursiveAction {
      * @param toProcessor The ending processor (exclusive)
      */
     protected final void exploreSequentially(int task, int fromProcessor, int toProcessor) {
+        // Loop through all the possible processors we can schedule on
         for (int processor = fromProcessor; processor < toProcessor; processor++) {
-            boolean isEmpty = taskCountOn[processor] == 0;
+            boolean isEmpty = localContext.taskCountOn[processor] == 0;
 
-            if (isPermutationDuplicate(task, processor)) {
-                countPruned();
+            // Each iteration generates exactly one branch, and classifies it exactly once below.
+            if (utils.isPermutationDuplicate(task, processor)) {
+                branchCounter.countPruned();
             } else {
-                int est = earliestStart(task, processor);
-                if (est + ctx.getBottomLevel(task) >= ctx.getBest()) {
-                    countPruned(); // See isDoomed: this branch can't beat the best.
+
+                // If the earliest start time and the bottom level of the task is greater than
+                // or equal to the best schedule found so far, then this branch cannot beat
+                // the best schedule and can be pruned.
+                if (utils.isDoomed(task, processor)) {
+                    branchCounter.countPruned();
                 } else {
-                    place(task, processor, est);
-                    search();
-                    undo();
+                    int earliestStartTime = utils.earliestStart(task, processor);
+
+                    // Create a new log entry for the current state.
+                    localContext.place(task, processor, earliestStartTime, ctx);
+
+                    // Search the subtree rooted at this placement and check if it leads to a dead end.
+                    boolean deadEnd = search();
+
+                    // Undo and restore the previous state from the log
+                    localContext.undo(ctx);
+
+                    // The check above only bounds on the earliest start; the stronger bound at the
+                    // child's entry may still have cut it, in which case this branch was pruned too.
+                    if (deadEnd) {
+                        branchCounter.countPruned();
+                    } else {
+                        branchCounter.countExplored();
+                    }
                 }
             }
 
@@ -335,27 +154,24 @@ public abstract class AbstractSearch extends RecursiveAction {
     }
 
     /**
-     * Bound check done before placing: with this task starting at its earliest possible time
-     * here, at least bottomLevel more time must pass, so the branch cannot beat the current
-     * best. Catching this before {@link #place} skips the log push, the child indegree
-     * updates, and the undo — and in the parallel search, cloning a whole child for a branch
-     * whose first bound check would kill it.
-     */
-    protected final boolean isDoomed(int task, int processor) {
-        return earliestStart(task, processor) + ctx.getBottomLevel(task) >= ctx.getBest();
-    }
-
-    /**
      * For a ready task, explore the candidate processors
+     * Implemented by subclasses that extend this class.
      */
     protected abstract void exploreProcessors(int task);
+
+    /**
+     * Whether this task's root node was cut by the bound on entry. Valid once join returns.
+     */
+    public final boolean wasPrunedAtEntry() {
+        return prunedAtEntry;
+    }
 
     @Override
     protected void compute() {
         try {
-            search();
+            prunedAtEntry = search();
         } finally {
-            flushCounters();
+            branchCounter.flush();
         }
     }
 }

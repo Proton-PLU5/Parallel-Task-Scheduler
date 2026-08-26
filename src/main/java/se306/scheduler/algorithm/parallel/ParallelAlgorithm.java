@@ -12,6 +12,10 @@ import java.util.concurrent.ForkJoinPool;
 public class ParallelAlgorithm implements Algorithm {
 
     private final SearchContext context;
+
+    /**
+     * Using a ForkJoinPool with work stealing design for the parallelization.
+     */
     private final ForkJoinPool pool;
 
     public ParallelAlgorithm(TaskGraph graph, int numProcessors, int numThreads) {
@@ -25,11 +29,19 @@ public class ParallelAlgorithm implements Algorithm {
     }
 
     public Schedule solve() {
+        // Run the greedy algorithm to get a good first makespan to improve initial pruning rates.
         context.runGreedyAlgorithm();
 
+        // Create the "root" search task and let it be run by the thread pool,
+        // The task then will explore all possible branches by creating children
+        // by itself.
         ParallelSearch root = new ParallelSearch(context);
         pool.invoke(root);
+
+        // Reached the end of the search, all possible branches has either been pruned or explored.
         pool.shutdown();
+
+        // Return the search results!
         return context.getBestSchedule();
     }
 

@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link ParallelSearch}) against an independent brute-force solver to make sure it actually finds
  * the optimal schedule, not just a valid one.
  *
- * <p>{@link AbstractSearch#nextReadyTask()} always picks the lowest-index ready task, so the search
+ * <p>{@link AlgorithmUtils#nextReadyTask()} always picks the lowest-index ready task, so the search
  * only branches on processor choice for a fixed task order. The brute force here enumerates all
  * topological orders too, so it isn't relying on the same assumption.
  */
@@ -661,17 +661,17 @@ class BranchAndBoundOptimalityTest {
                 // stop one task short of completion so there's always a nontrivial subproblem
                 int depth = 0;
                 while (depth < n - 1) {
-                    int task = search.nextReadyTask();
-                    if (task == -1) break;
+                    int task = search.utils.nextReadyTask();
+                    if (task == -1) break;   // no ready task (disconnected graph corner case)
 
                     int proc = rnd.nextInt(procs);
                     search.place(task, proc);
                     depth++;
 
-                    int bound = search.lowerBound();
-                    int[] partialProcOf   = search.processorOf.clone();
-                    int[] partialStartTime = search.startTime.clone();
-                    int[] partialFreeAt   = search.processorFreeAt.clone();
+                    int bound = search.utils.lowerBound();
+                    int[] partialProcOf   = search.localContext.processorOf.clone();
+                    int[] partialStartTime = search.localContext.startTime.clone();
+                    int[] partialFreeAt   = search.localContext.processorFreeAt.clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);
@@ -684,7 +684,7 @@ class BranchAndBoundOptimalityTest {
                 }
 
                 for (int i = 0; i < depth; i++) {
-                    search.undo();
+                    search.localContext.undo(search.getContext());
                 }
             }
         }
@@ -716,10 +716,10 @@ class BranchAndBoundOptimalityTest {
                 for (int proc = 0; proc < procs; proc++) {
                     search.place(firstTask, proc);
 
-                    int bound = search.lowerBound();
-                    int[] partialProcOf = search.processorOf.clone();
-                    int[] partialStartTime = search.startTime.clone();
-                    int[] partialFreeAt = search.processorFreeAt.clone();
+                    int bound = search.utils.lowerBound();
+                    int[] partialProcOf = search.localContext.processorOf.clone();
+                    int[] partialStartTime = search.localContext.startTime.clone();
+                    int[] partialFreeAt = search.localContext.processorFreeAt.clone();
 
                     int optimalCompletion = bruteForceOptimalCompletion(
                             g, procs, partialProcOf, partialStartTime, partialFreeAt);
@@ -729,7 +729,7 @@ class BranchAndBoundOptimalityTest {
                                     + ", task=" + firstTask + ", proc=" + proc
                                     + " — bound " + bound + " > true completion " + optimalCompletion);
 
-                    search.undo();
+                    search.localContext.undo(search.getContext());
                 }
             }
         }
