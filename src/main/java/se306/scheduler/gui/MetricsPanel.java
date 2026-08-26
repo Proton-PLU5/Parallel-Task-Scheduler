@@ -74,10 +74,10 @@ public class MetricsPanel extends BorderPane {
     private boolean complete;
 
     /**
-     * The frame the tiles show when nothing is hovered, and the anchor the chart is
+     * The time (seconds) the tiles show when nothing is hovered, and the anchor the chart is
      * drawn to.
      */
-    private int displayedIndex;
+    private double displayedTimeSeconds;
 
     private final Label statusPill = new Label("● Running");
     private final Label timelineLabel = new Label("Live · 0.0 s");
@@ -101,12 +101,12 @@ public class MetricsPanel extends BorderPane {
         timelineLabel.getStyleClass().add("metrics-title");
 
         history = new MetricsHistory(SAMPLE_INTERVAL);
-        playbackController = new PlaybackController(timeSlider, playButton, speedButton, history);
+        playbackController = new PlaybackController(timeSlider, playButton, speedButton);
         chartView = new ConvergenceChartView(
                 history,
                 this::currentUpto,
                 frame -> showStats(frame, true),
-                () -> showStats(history.frame(Math.min(displayedIndex, history.frameCount() - 1)), false));
+            () -> showStats(history.frameAt(displayedTimeSeconds), false));
 
         Region headerSpacer = new Region();
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
@@ -114,12 +114,12 @@ public class MetricsPanel extends BorderPane {
         headerRow.setAlignment(Pos.CENTER_LEFT);
 
         timeSlider.setDisable(true);
-        timeSlider.setSnapToTicks(true);
+        timeSlider.setSnapToTicks(false);
         timeSlider.setMajorTickUnit(1);
-        timeSlider.setBlockIncrement(1);
+        timeSlider.setBlockIncrement(SAMPLE_INTERVAL.toSeconds());
         timeSlider.setMaxWidth(Double.MAX_VALUE);
         timeSlider.valueProperty().addListener(
-                (obs, oldVal, newVal) -> displayFrame((int) Math.round(newVal.doubleValue())));
+            (obs, oldVal, newVal) -> displayAtTime(newVal.doubleValue()));
 
         VBox topSection = new VBox(12, headerRow, timeSlider);
         BorderPane.setMargin(topSection, new Insets(0, 0, 20, 0));
@@ -211,7 +211,7 @@ public class MetricsPanel extends BorderPane {
     public void beginRun() {
         playbackController.reset();
         history.reset(SAMPLE_INTERVAL);
-        displayedIndex = 0;
+        displayedTimeSeconds = 0;
         complete = false;
 
         statusPill.setText("● Running");
@@ -258,12 +258,13 @@ public class MetricsPanel extends BorderPane {
         if (history.isEmpty()) {
             return;
         }
-        boolean scrubbable = history.frameCount() > 1;
-        timeSlider.setMax(history.frameCount() - 1);
+        double endTime = history.lastFrameTime();
+        boolean scrubbable = history.frameCount() > 1 && endTime > 0;
+        timeSlider.setMax(endTime);
         timeSlider.setDisable(!scrubbable);
         playbackController.setScrubbable(scrubbable);
-        timeSlider.setValue(history.frameCount() - 1);
-        displayFrame(history.frameCount() - 1);
+        timeSlider.setValue(endTime);
+        displayAtTime(endTime);
     }
 
     /**
@@ -279,31 +280,33 @@ public class MetricsPanel extends BorderPane {
             chartView.render(history.lastImprovementTime());
             return;
         }
-        int last = history.frameCount() - 1;
-        timeSlider.setMax(last);
-        if ((int) Math.round(timeSlider.getValue()) == last) {
+        double lastTime = history.lastFrameTime();
+        timeSlider.setMax(lastTime);
+        if (Math.abs(timeSlider.getValue() - lastTime) < 1e-9) {
             // Already pinned to the newest frame, so setValue would be a no-op and the
             // listener
             // would not fire - which is the case when an improvement arrives between
             // samples.
-            displayFrame(last);
+            displayAtTime(lastTime);
         } else {
-            timeSlider.setValue(last);
+            timeSlider.setValue(lastTime);
         }
     }
 
-    private void displayFrame(int index) {
+    private void displayAtTime(double timeSeconds) {
         if (history.isEmpty()) {
             return;
         }
-        displayedIndex = Math.max(0, Math.min(index, history.frameCount() - 1));
-        Frame frame = history.frame(displayedIndex);
+        displayedTimeSeconds = Math.max(0, Math.min(timeSeconds, history.lastFrameTime()));
+        Frame frame = history.frameAt(displayedTimeSeconds);
 
         // While live, an improvement newer than the last sample should show up
         // immediately rather
         // than waiting for the next tick. During replay the frame's own time is the
         // whole truth.
-        double upto = complete ? frame.timeSeconds() : Math.max(frame.timeSeconds(), history.lastImprovementTime());
+        double upto = complete
+                ? displayedTimeSeconds
+                : Math.max(displayedTimeSeconds, history.lastImprovementTime());
 
         chartView.render(upto);
 
@@ -321,7 +324,7 @@ public class MetricsPanel extends BorderPane {
             timelineLabel.setText(String.format("Hover · %.1f s", frame.timeSeconds()));
         } else if (complete) {
             timelineLabel.setText(String.format("Replay · %.1f s of %.1f s",
-                    frame.timeSeconds(), history.frame(history.frameCount() - 1).timeSeconds()));
+                    frame.timeSeconds(), history.lastFrameTime()));
         } else {
             timelineLabel.setText(String.format("Live · %.1f s",
                     Math.max(frame.timeSeconds(), history.lastImprovementTime())));
@@ -349,7 +352,6 @@ public class MetricsPanel extends BorderPane {
         if (history.isEmpty()) {
             return history.lastImprovementTime();
         }
-        Frame frame = history.frame(Math.min(displayedIndex, history.frameCount() - 1));
-        return complete ? frame.timeSeconds() : Math.max(frame.timeSeconds(), history.lastImprovementTime());
+        return complete ? displayedTimeSeconds : Math.max(displayedTimeSeconds, history.lastImprovementTime());
     }
 }

@@ -130,11 +130,90 @@ class MetricsHistory {
         return frames.get(index);
     }
 
+    double lastFrameTime() {
+        return frames.isEmpty() ? 0 : frames.get(frames.size() - 1).timeSeconds();
+    }
+
+    /**
+     * Synthesizes a frame at {@code timeSeconds} by interpolating between adjacent real samples.
+     */
+    Frame frameAt(double timeSeconds) {
+        if (frames.isEmpty()) {
+            return new Frame(0, 0, 0, 0, 0.0, Integer.MAX_VALUE);
+        }
+        if (timeSeconds <= frames.get(0).timeSeconds()) {
+            return frames.get(0);
+        }
+        if (timeSeconds >= frames.get(frames.size() - 1).timeSeconds()) {
+            return frames.get(frames.size() - 1);
+        }
+
+        int insertion = insertionPoint(timeSeconds);
+        if (insertion <= 0) {
+            return frames.get(0);
+        }
+        if (insertion >= frames.size()) {
+            return frames.get(frames.size() - 1);
+        }
+
+        Frame before = frames.get(insertion - 1);
+        Frame after = frames.get(insertion);
+        double span = after.timeSeconds() - before.timeSeconds();
+        double fraction = span <= 0 ? 0 : (timeSeconds - before.timeSeconds()) / span;
+        fraction = Math.max(0, Math.min(1, fraction));
+
+        return new Frame(
+                timeSeconds,
+                Math.round(before.branchesExplored()
+                        + (after.branchesExplored() - before.branchesExplored()) * fraction),
+                Math.round(before.branchesPruned()
+                        + (after.branchesPruned() - before.branchesPruned()) * fraction),
+                Math.round(before.usedMemoryBytes()
+                        + (after.usedMemoryBytes() - before.usedMemoryBytes()) * fraction),
+                before.cpuPercent(),
+                makespanAt(timeSeconds));
+    }
+
     double frameIntervalSeconds() {
         return frameIntervalSeconds;
     }
 
     double lastImprovementTime() {
         return lastImprovementTime;
+    }
+
+    private int insertionPoint(double timeSeconds) {
+        int low = 0;
+        int high = frames.size();
+        while (low < high) {
+            int mid = (low + high) >>> 1;
+            if (frames.get(mid).timeSeconds() < timeSeconds) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
+    }
+
+    private int makespanAt(double timeSeconds) {
+        int last = Integer.MAX_VALUE;
+        for (Improvement improvement : improvements) {
+            if (improvement.timeSeconds() > timeSeconds) {
+                break;
+            }
+            last = improvement.makespan();
+        }
+        if (last == Integer.MAX_VALUE) {
+            for (Frame frame : frames) {
+                if (frame.timeSeconds() > timeSeconds) {
+                    break;
+                }
+                if (frame.bestMakespan() != Integer.MAX_VALUE) {
+                    last = frame.bestMakespan();
+                }
+            }
+        }
+        return last;
     }
 }
