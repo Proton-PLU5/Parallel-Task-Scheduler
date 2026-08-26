@@ -8,26 +8,25 @@ import javafx.scene.control.Slider;
 import javafx.util.Duration;
 
 /**
- * Drives replay of a finished run: steps {@code timeSlider} one frame at a time, one sampled
- * interval per frame at 1x. A long run is unwatchable at true real-time, hence the speed control.
+ * Drives replay of a finished run by advancing {@code timeSlider} in continuous seconds at the
+ * selected speed multiplier.
  */
 class PlaybackController {
 
     private static final int[] PLAYBACK_SPEEDS = {1, 4, 16};
+    private static final Duration PLAYBACK_TICK = Duration.millis(16);
 
     private final Slider timeSlider;
     private final Button playButton;
     private final Button speedButton;
-    private final MetricsHistory history;
-
     private Timeline playbackTimeline;
     private int speedIndex;
+    private long lastTickNanos;
 
-    PlaybackController(Slider timeSlider, Button playButton, Button speedButton, MetricsHistory history) {
+    PlaybackController(Slider timeSlider, Button playButton, Button speedButton) {
         this.timeSlider = timeSlider;
         this.playButton = playButton;
         this.speedButton = speedButton;
-        this.history = history;
 
         playButton.setDisable(true);
         playButton.setOnAction(e -> togglePlayback());
@@ -53,17 +52,24 @@ class PlaybackController {
             stopPlayback();
             return;
         }
-        if ((int) timeSlider.getValue() >= history.frameCount() - 1) {
+        if (timeSlider.getValue() >= timeSlider.getMax() - 1e-9) {
             timeSlider.setValue(0);
         }
         startPlayback();
     }
 
     private void startPlayback() {
-        Duration frameDelay = Duration.seconds(history.frameIntervalSeconds() / PLAYBACK_SPEEDS[speedIndex]);
-        playbackTimeline = new Timeline(new KeyFrame(frameDelay, event -> {
-            int next = (int) timeSlider.getValue() + 1;
-            if (next >= history.frameCount()) {
+        lastTickNanos = System.nanoTime();
+        playbackTimeline = new Timeline(new KeyFrame(PLAYBACK_TICK, event -> {
+            long now = System.nanoTime();
+            double deltaSeconds = (now - lastTickNanos) / 1_000_000_000.0;
+            lastTickNanos = now;
+
+            double next = Math.min(
+                    timeSlider.getMax(),
+                    timeSlider.getValue() + deltaSeconds * PLAYBACK_SPEEDS[speedIndex]);
+            if (next >= timeSlider.getMax() - 1e-9) {
+                timeSlider.setValue(timeSlider.getMax());
                 stopPlayback();
                 return;
             }
@@ -84,11 +90,5 @@ class PlaybackController {
     private void cycleSpeed() {
         speedIndex = (speedIndex + 1) % PLAYBACK_SPEEDS.length;
         speedButton.setText(PLAYBACK_SPEEDS[speedIndex] + "x");
-
-        // Rebuild the timeline so a speed change takes effect mid-playback rather than at the end.
-        if (playbackTimeline != null && playbackTimeline.getStatus() == Animation.Status.RUNNING) {
-            playbackTimeline.stop();
-            startPlayback();
-        }
     }
 }

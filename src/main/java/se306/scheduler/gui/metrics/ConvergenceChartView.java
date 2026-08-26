@@ -125,7 +125,7 @@ class ConvergenceChartView extends BorderPane {
             return Optional.empty();
         }
         double dataTime = Math.max(earliestRealTime(), hoverTimeSeconds);
-        return Optional.of(frameAt(dataTime));
+        return Optional.of(history.frameAt(dataTime));   // was: frameAt(dataTime)
     }
 
     void clearHover() {
@@ -264,13 +264,12 @@ class ConvergenceChartView extends BorderPane {
         double time = xAxis.getValueForDisplay(local.getX()).doubleValue();
 
         double earliest = earliestRealTime();
-        double latest = frames.get(frames.size() - 1).timeSeconds();
+        double latest = currentUpto.getAsDouble();   // was: frames.get(frames.size() - 1).timeSeconds()
 
-        // Clamp to the data range — crosshair stops at the edges rather than clearing.
         double clampedTime = Math.max(earliest, Math.min(latest, time));
 
         hoverTimeSeconds = clampedTime;
-        Frame frame = frameAt(clampedTime);
+        Frame frame = history.frameAt(clampedTime);
         onHover.accept(frame);
         updateHoverMarker(clampedTime, frame);
     }
@@ -284,13 +283,12 @@ class ConvergenceChartView extends BorderPane {
             return;
         }
 
-        int makespan = makespanAt(dataTime);
-        if (makespan == Integer.MAX_VALUE) {
+        if (frame.bestMakespan() == Integer.MAX_VALUE) {
             hoverDotSeries.getData().clear();
             return;
         }
         hoverDotSeries.getData().setAll(
-                List.of(new XYChart.Data<>(hoverTimeSeconds, makespan)));
+                List.of(new XYChart.Data<>(hoverTimeSeconds, frame.bestMakespan())));
     }
 
     /**
@@ -307,31 +305,10 @@ class ConvergenceChartView extends BorderPane {
         return frames.size() > 1 ? frames.get(1).timeSeconds() : frames.get(0).timeSeconds();
     }
 
-    private int makespanAt(double timeSeconds) {
-        int last = Integer.MAX_VALUE;
-        for (Improvement improvement : history.improvements()) {
-            if (improvement.timeSeconds() > timeSeconds) break;
-            last = improvement.makespan();
-        }
-        if (last == Integer.MAX_VALUE) {
-            // No improvement has landed by this time. Fall back to a frame's own recorded best,
-            // for the case where a sample was taken before its Improvement event finished
-            // propagating - but never look past timeSeconds, or the hover dot would show a value
-            // that hasn't actually happened yet at that point in time.
-            for (Frame frame : history.frames()) {
-                if (frame.timeSeconds() > timeSeconds) break;
-                if (frame.bestMakespan() != Integer.MAX_VALUE) {
-                    last = frame.bestMakespan();
-                }
-            }
-        }
-        return last;
-    }
-
     private void redrawMarkers() {
         if (hoverTimeSeconds >= 0 && !history.isEmpty()) {
             double dataTime = Math.max(earliestRealTime(), hoverTimeSeconds);
-            Frame frame = frameAt(dataTime);
+            Frame frame = history.frameAt(dataTime);
             onHover.accept(frame);
             updateHoverMarker(dataTime, frame);
         } else if (!history.frames().isEmpty()) {
@@ -344,54 +321,5 @@ class ConvergenceChartView extends BorderPane {
         crosshairSeries.getData().setAll(List.of(
                 new XYChart.Data<>(timeSeconds, yAxis.getLowerBound()),
                 new XYChart.Data<>(timeSeconds, yAxis.getUpperBound())));
-    }
-
-    /**
-     * Synthesizes a frame at exactly {@code timeSeconds} by linearly interpolating between the two
-     * real samples that bracket it, so the hover readout changes continuously as the cursor moves
-    * instead of snapping from one recorded sample straight to the next. {@code bestMakespan} is
-    * deliberately left un-interpolated - it is a step function that only actually changes at a
-    * real improvement, so blending it would show a makespan that was never true at that instant.
-    * CPU is taken from the earlier real sample because it should never be synthesized between
-    * measurements.
-     */
-    private Frame frameAt(double timeSeconds) {
-        List<Frame> frames = history.frames();
-        int insertion = insertionPoint(timeSeconds);
-        if (insertion <= 0) {
-            return frames.get(0);
-        }
-        if (insertion >= frames.size()) {
-            return frames.get(frames.size() - 1);
-        }
-        Frame before = frames.get(insertion - 1);
-        Frame after = frames.get(insertion);
-        double span = after.timeSeconds() - before.timeSeconds();
-        double fraction = span <= 0 ? 0 : (timeSeconds - before.timeSeconds()) / span;
-        fraction = Math.max(0, Math.min(1, fraction));
-
-        return new Frame(
-            timeSeconds,
-            Math.round(before.branchesExplored() + (after.branchesExplored() - before.branchesExplored()) * fraction),
-            Math.round(before.branchesPruned() + (after.branchesPruned() - before.branchesPruned()) * fraction),
-            Math.round(before.usedMemoryBytes() + (after.usedMemoryBytes() - before.usedMemoryBytes()) * fraction),
-            before.cpuPercent(),
-            makespanAt(timeSeconds));
-    }
-
-    /** Finds first index whose sample time is >= timeSeconds, or frames.size() if none is. */
-    private int insertionPoint(double timeSeconds) {
-        List<Frame> frames = history.frames();
-        int low = 0;
-        int high = frames.size();
-        while (low < high) {
-            int mid = (low + high) >>> 1;
-            if (frames.get(mid).timeSeconds() < timeSeconds) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-        return low;
     }
 }
