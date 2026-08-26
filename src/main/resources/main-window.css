@@ -28,6 +28,13 @@
     -fx-padding: 24px;
 }
 
+/* Gantt chart panel */
+
+.gantt-chart-panel {
+    -fx-background-color: #1a1a19;
+    -fx-background-radius: 8px;
+}
+
 .metrics-title {
     -fx-text-fill: #ffffff;
     -fx-font-size: 18px;
