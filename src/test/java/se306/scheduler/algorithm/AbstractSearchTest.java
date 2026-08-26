@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import se306.scheduler.algorithm.core.AbstractSearch;
+import se306.scheduler.algorithm.sequential.SequentialAlgorithm;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 

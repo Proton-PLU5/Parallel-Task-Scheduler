@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import se306.scheduler.algorithm.core.SearchContext;
 import se306.scheduler.graph.GraphBuilder;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;

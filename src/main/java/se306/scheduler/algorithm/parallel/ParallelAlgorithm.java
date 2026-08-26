@@ -1,12 +1,11 @@
 package se306.scheduler.algorithm.parallel;
 
 import se306.scheduler.algorithm.Algorithm;
-import se306.scheduler.algorithm.SearchContext;
+import se306.scheduler.algorithm.core.SearchContext;
 import se306.scheduler.graph.TaskGraph;
 import se306.scheduler.gui.SearchListener;
 import se306.scheduler.schedule.Schedule;
 
-import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 
 public class ParallelAlgorithm implements Algorithm {

@@ -1,5 +1,7 @@
 package se306.scheduler.algorithm;
 
+import se306.scheduler.algorithm.core.LocalContext;
+import se306.scheduler.algorithm.core.SearchContext;
 import se306.scheduler.graph.TaskGraph;
 
 public class AlgorithmUtils {
@@ -20,7 +22,7 @@ public class AlgorithmUtils {
      */
     public int earliestStart(int task, int processor) {
         // Get the time when that processor is free.
-        int ready = localContext.processorFreeAt[processor];
+        int ready = localContext.getProcessorFreeAt()[processor];
 
         TaskGraph graph = searchContext.getGraph();
 
@@ -30,11 +32,11 @@ public class AlgorithmUtils {
             int pred = graph.parentAt(k);
 
             // Determine when the predecessor finishes.
-            int predFinish = localContext.startTime[pred] + graph.weight(pred);
+            int predFinish = localContext.getStartTime()[pred] + graph.weight(pred);
 
             // Check if the predecessor is on the same processor or on a different branch.
             // If on the same then comms cost is 0, else then get the comms cost.
-            int comm = (localContext.processorOf[pred] == processor) ? 0 : graph.commCost(pred, task);
+            int comm = (localContext.getProcessorOf()[pred] == processor) ? 0 : graph.commCost(pred, task);
 
             // Determine the earliest time possible for the task to start on the processor
             // which is the maximum value of when the processor is free and
@@ -60,9 +62,9 @@ public class AlgorithmUtils {
      * @return the best lower bound known for the current search state
      */
     public int lowerBound() {
-        return Math.max(localContext.makespan,
-                Math.max(localContext.currentBound,
-                        searchContext.getLoadBound(localContext.idleTime)));
+        return Math.max(localContext.getMakespan(),
+                Math.max(localContext.getCurrentBound(),
+                        searchContext.getLoadBound(localContext.getIdleTime())));
     }
 
     /**
@@ -78,7 +80,7 @@ public class AlgorithmUtils {
             // If the task has not been assigned to a processor
             // And if the predecessors have all been assigned as well.
             // This task is ready. Return the first one we find.
-            if (localContext.processorOf[task] == -1 && localContext.indegreeRemaining[task] == 0) return task;
+            if (localContext.getProcessorOf()[task] == -1 && localContext.getIndegreeRemaining()[task] == 0) return task;
         }
 
         // If no tasks could be found return -1.
@@ -99,7 +101,7 @@ public class AlgorithmUtils {
         // Find the first empty processor, since later empty processors are symmetric.
         for (int processor = 0; processor < numProcessors; processor++) {
             // Return an exclusive upper bound that includes this first empty processor.
-            if (localContext.taskCountOn[processor] == 0) return processor + 1;
+            if (localContext.getTaskCountOn()[processor] == 0) return processor + 1;
         }
 
         // If none are empty, all processors remain worth exploring.
@@ -123,10 +125,10 @@ public class AlgorithmUtils {
      *         that the canonical ordering already explores in a different branch.
      */
     public final boolean isPermutationDuplicate(int task, int processor) {
-        return localContext.lastPlaced != -1
-                && task < localContext.lastPlaced
-                && processor != localContext.processorOf[localContext.lastPlaced]
-                && !searchContext.getGraph().hasEdge(localContext.lastPlaced, task);
+        return localContext.getLastPlaced() != -1
+                && task < localContext.getLastPlaced()
+                && processor != localContext.getProcessorOf()[localContext.getLastPlaced()]
+                && !searchContext.getGraph().hasEdge(localContext.getLastPlaced(), task);
     }
 
     /**
