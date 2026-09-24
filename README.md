@@ -4,6 +4,9 @@ Schedules a task graph onto `P` homogeneous processors so that the last task fin
 possible. Input and output are both DOT files. The search is an exhaustive DFS branch and bound,
 so the schedule it reports is optimal, not just good.
 
+<img width="1275" height="744" alt="image" src="https://github.com/user-attachments/assets/4b3b149e-7d53-43b3-850c-cbd99dada277" />
+<img width="1278" height="716" alt="image" src="https://github.com/user-attachments/assets/6c386e2e-14d7-4d68-ac53-bee6d5d09115" />
+
 ## Build
 
 Requires JDK 17 or newer and Maven.
